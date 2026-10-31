@@ -167,8 +167,9 @@ test('S1: a sealing failure after config never makes evaluation a 500: the recor
 
 // ---- S2: one workspace's slow rule cannot starve another's, and is quarantined ----------------------------------------------------------------
 test('S2: a slow accepted rule times out once, is quarantined and reported, and another workspace is answered while it runs', async () => {
-  const r = createRegexRunner({ timeoutMs: 1000, pool: 2 });
+  const r = createRegexRunner({ timeoutMs: 4000, pool: 2 });
   try {
+    await Promise.all([r.ping(60000, 'warm-1'), r.ping(60000, 'warm-2')]); // both pool children running: start-up time under load is not what is measured
     await withServer(async (url, { workspaces }) => {
       await post(url, '/api/rules/import', { mode: 'live', toml: "[[rules]]\nid = \"slow\"\nregex = '''.*.*.*.*.*.*x'''\n" }, W('a'));
       await post(url, '/api/rules/import', { mode: 'live', toml: "[[rules]]\nid = \"ok\"\nregex = '''zz[0-9]{3}'''\n" }, W('b'));

@@ -71,10 +71,10 @@ test('the child has its OWN network guard (all six routes blocked, no real attem
 });
 
 test('one workspace\'s slow rule does not hold up another workspace (per-owner queues on a small pool), and a flood is refused', async () => {
-  const r = createRegexRunner({ timeoutMs: 1200, pool: 2, queuePerOwner: 2 });
+  const r = createRegexRunner({ timeoutMs: 4000, pool: 2, queuePerOwner: 2 });
   try {
-    await r.ping(60000);
-    const slow = r.scan({ jobs: [job('p', '.*.*.*.*.*.*x')], text: 'a'.repeat(20000) }, 1200, 'ws-a').then(() => 'ok', (e) => e.code);
+    await Promise.all([r.ping(60000, 'warm-1'), r.ping(60000, 'warm-2')]);
+    const slow = r.scan({ jobs: [job('p', '.*.*.*.*.*.*x')], text: 'a'.repeat(20000) }, 4000, 'ws-a').then(() => 'ok', (e) => e.code);
     await new Promise((res) => setTimeout(res, 80));
     const quick = await r.scan({ jobs: [job('q', 'zz[0-9]+')], text: 'zz123' }, 60000, 'ws-b');
     assert.equal(quick.matches.length, 1);
