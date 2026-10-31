@@ -1,9 +1,9 @@
 // Static safety check for a regular expression a visitor pastes (a gitleaks-format rule's `regex` or an allowlist entry). This is the FIRST
 // of two guards: a restricted-syntax check here (cheap, conservative, so a hostile pattern is refused before it is ever run), and then the
-// pattern only ever runs in a worker thread with a hard time limit and an input cap (regexRunner.js). Neither replaces the other.
-// Refused: nested quantifiers, a quantified alternation, backreferences, lookaround, named groups, huge repeat counts, too many unbounded
+// pattern only ever runs in a CHILD PROCESS with a hard time limit (SIGKILL), a capped heap and an input cap (regexRunner.js). Neither replaces the other.
+// Refused: nested quantifiers, a quantified alternation, backreferences, lookaround, named groups, huge repeat counts, too many variable
 // quantifiers, and patterns over the length cap. A leading (?i) (Go syntax, common in gitleaks files) becomes the `i` flag.
-export const REGEX_LIMITS = { length: 400, repeat: 100, unbounded: 6, groups: 12 };
+export const REGEX_LIMITS = { length: 400, repeat: 100, variable: 6, groups: 12 };
 
 export function splitInlineFlags(source) {
   const m = /^\(\?i\)/.exec(source);
@@ -18,14 +18,15 @@ export function checkRegex(raw) {
   if (raw.length > REGEX_LIMITS.length) return `longer than ${REGEX_LIMITS.length} characters`;
   const stack = []; // per open group: { variable, alt }
   let top = { variable: false, alt: false };
-  let unbounded = 0; let groups = 0;
+  let variable = 0; let groups = 0;
   let lastAtom = null; // what a following quantifier applies to: { group?: {variable, alt}, variable?: bool }
   let i = 0;
   const quant = (min, max) => {
     const repeats = max === Infinity || max > 1;
     if (max !== Infinity && max > REGEX_LIMITS.repeat) return `repeat count over ${REGEX_LIMITS.repeat}`;
     if (min > REGEX_LIMITS.repeat) return `repeat count over ${REGEX_LIMITS.repeat}`;
-    if (max === Infinity && ++unbounded > REGEX_LIMITS.unbounded) return `more than ${REGEX_LIMITS.unbounded} unbounded quantifiers`;
+    // Every quantifier whose count can vary (? * + {n,} {n,m}) counts: a?a?a?...aaa backtracks exponentially without any nested group.
+    if ((max === Infinity || max !== min) && ++variable > REGEX_LIMITS.variable) return `more than ${REGEX_LIMITS.variable} variable quantifiers (?, *, +, {n,m})`;
     if (!lastAtom) return 'a quantifier with nothing to repeat';
     if (repeats && lastAtom.group) {
       if (lastAtom.group.variable) return 'nested quantifiers (a repeated group that already repeats)';

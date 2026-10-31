@@ -87,7 +87,7 @@
     {
       "id": "redos-guard",
       "term": "ReDoS guard",
-      "definition": "A pasted regular expression is user-fed, so it is checked up front for nested quantifiers, backreferences, lookaround and huge repeat counts, and only ever runs in a worker thread with a hard time limit and an input cap.",
+      "definition": "A pasted regular expression is user-fed, so it is checked up front for nested quantifiers, backreferences, lookaround and huge repeat counts, and only ever runs in a separate child process that is killed (SIGKILL) if it runs over its time limit, with a capped heap and an input cap.",
       "aliases": [
         "catastrophic backtracking"
       ]

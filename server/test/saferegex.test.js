@@ -9,7 +9,7 @@ test('hostile patterns are refused before they can run', () => {
     '(a)\\1': /backreference/, '(?<n>a)\\k<n>': /named group/,
     '(?=a)b': /lookahead/, '(?!a)b': /lookahead/, '(?<=a)b': /lookahead/, '(?<!a)b': /lookahead/,
     'a{1,1000}': /repeat count/, 'x{1000000}': /repeat count/, 'x{0,9999999999}': /repeat count/, 'a{5,2}': /backwards/,
-    'a*b*c*d*e*f*g*': /unbounded/,
+    'a*b*c*d*e*f*g*': /variable quantifiers/, [`${'a?'.repeat(40)}${'a'.repeat(40)}`]: /variable quantifiers/, ['a{0,2}'.repeat(7)]: /variable quantifiers/, [`${'a?'.repeat(7)}`]: /variable quantifiers/,
     '*a': /nothing to repeat/, '(a': /unbalanced/, 'a)': /unbalanced/, '[a': /unterminated/, 'a\\': /backslash/,
     '(?i:a)': /inline flag/, '\\p{L}': /Unicode/,
   };

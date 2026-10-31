@@ -47,6 +47,6 @@ test('customer.config.json overrides only brand, agentId and host, and refuses h
   const c = loadCast(f, 'retail');
   assert.equal(c.castBrand, 'Acme Corp'); assert.equal(c.castAgentId, 'bot.one'); assert.equal(c.castHost, 'acme');
   assert.equal(c.castCard, VERTICALS.retail.castCard, 'the personal data is not configurable');
-  fs.writeFileSync(f, JSON.stringify({ cast: { brand: 'See https://evil.com', host: 'a.b.c' } }));
+  fs.writeFileSync(f, JSON.stringify({ cast: { brand: 'See https://evil.example', host: 'a.b.c' } }));
   assert.equal(loadCast(f).castBrand, DEFAULT_CAST.castBrand); assert.equal(loadCast(f).castHost, DEFAULT_CAST.castHost);
 });

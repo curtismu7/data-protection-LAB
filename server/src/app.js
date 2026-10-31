@@ -119,7 +119,7 @@ export function createApp({ health = createHealth(), configFile = CONFIG, worksp
   });
 
   // Reset clears this workspace's events, sealed records, prompt-log settings and pasted rules only.
-  api.post('/reset', (req, res) => { const id = ws(req, res); if (!id) return; noStore(res); workspaces.reset(id); return res.json({ reset: 'ok', workspace: id }); });
+  api.post('/reset', (req, res) => { const id = ws(req, res); if (!id) return; noStore(res); workspaces.reset(id); runner.cancel?.(id); return res.json({ reset: 'ok', workspace: id }); });
   api.use((_req, res) => res.status(404).json({ error: 'not_found' }));
   app.use('/api', api);
   // Errors become short JSON. Express's default handler would send an HTML stack trace with absolute file paths.

@@ -60,7 +60,7 @@ export default function RulesTab({ story, mode, resetSignal }) {
     <div className="stack">
       <section className="panel">
         <h2 className="panel__title">Your own rules, in gitleaks rule format <ClaimTag label={story.claimLabel} /></h2>
-        <p className="muted" data-testid="rules-note">Paste rules and they are parsed (a small bounded TOML subset), checked and added. <b>One bad rule refuses the whole paste</b>: nothing is half-applied, and Errors lists each refused rule on its own line. The regular expression is user-supplied, so it is checked up front (nested quantifiers, backreferences, lookaround, huge repeat counts and long patterns are refused) and then only ever runs in a worker thread with a hard time limit and an input cap. TOML key names are a lab reading of the gitleaks format <SourceTag source="reading" />. At most {story.limits.toml.rules} rules and {story.limits.toml.bytes} characters per paste; {story.limits.rules.rulesPerWorkspace} rules per workspace.</p>
+        <p className="muted" data-testid="rules-note">Paste rules and they are parsed (a small bounded TOML subset), checked and added. <b>One bad rule refuses the whole paste</b>: nothing is half-applied, and Errors lists each refused rule on its own line. The regular expression is user-supplied, so it is checked up front (nested quantifiers, backreferences, lookaround, huge repeat counts and long patterns are refused) and then only ever runs in a separate child process that is killed if it runs over its time limit (2 seconds a rule, 4 seconds an inspection), with a capped heap and a 20000 character input cap. A rule that runs out of time is disabled and reported. TOML key names are a lab reading of the gitleaks format <SourceTag source="reading" />. At most {story.limits.toml.rules} rules and {story.limits.toml.bytes} characters per paste; {story.limits.rules.rulesPerWorkspace} rules per workspace.</p>
         <div className="seg" role="group" aria-label="Sample pastes">
           {story.ruleSamples.map((s) => <button key={s.id} type="button" onClick={() => pick(s)} data-testid={`sample-${s.id}`}>{s.title}</button>)}
         </div>
@@ -80,7 +80,7 @@ export default function RulesTab({ story, mode, resetSignal }) {
           <div className="scroll"><table className="tbl tbl--wide" data-testid="rules-list">
             <thead><tr><th>ID</th><th>Category</th><th>Score</th><th>Mode</th><th /></tr></thead>
             <tbody>{rules.map((r) => (
-              <tr key={r.ID}><td><code>{visible(r.ID)}</code></td><td>{r.Category}</td><td>{r.Score}</td><td><span className="tag" data-state={r.enforcement === "enforce" ? "bad" : "warn"}>{r.enforcement}</span></td>
+              <tr key={r.ID}><td><code>{visible(r.ID)}</code></td><td>{r.Category}</td><td>{r.Score}</td><td><span className="tag" data-state={r.enforcement === "enforce" ? "bad" : "warn"}>{r.enforcement}</span>{r.disabled && <span className="tag" data-state="bad" data-testid={`disabled-${r.ID}`}> disabled: {r.disabled}</span>}</td>
                 <td>{r.enforcement === "observe"
                   ? <button type="button" onClick={() => setEnforcement(r.ID, "enforce")} data-testid={`promote-${r.ID}`}>Promote to enforcement</button>
                   : <button type="button" onClick={() => setEnforcement(r.ID, "observe")} data-testid={`demote-${r.ID}`}>Back to observe</button>}</td></tr>

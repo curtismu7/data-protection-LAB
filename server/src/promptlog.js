@@ -2,6 +2,7 @@
 // 2026-10-31, schema only). Off until a tenant asks, and nothing is recorded without a public key. Behaviour here is the lab's reading.
 import { SURFACES } from './categories.js';
 import { SealError, parsePublicJwk } from './seal.js';
+import { maskText } from './mask.js';
 
 export const PL_LIMITS = { defaultMaxBytes: 16384, minBytes: 256, maxBytes: 65536 };
 export const defaultPromptLog = () => ({ Enabled: false, PublicKey: '', KeyID: '', Surfaces: [], IncludeResponses: false, MaxBytes: 0 });
@@ -24,7 +25,7 @@ export function validatePromptLog(c) {
     if (Number.isInteger(c.MaxBytes) && (c.MaxBytes === 0 || (c.MaxBytes >= PL_LIMITS.minBytes && c.MaxBytes <= PL_LIMITS.maxBytes))) config.MaxBytes = c.MaxBytes;
     else errors.push({ field: 'MaxBytes', message: `must be 0 (the default) or ${PL_LIMITS.minBytes} to ${PL_LIMITS.maxBytes}` });
   }
-  if (has('KeyID')) { if (typeof c.KeyID === 'string' && (c.KeyID === '' || KEY_ID.test(c.KeyID))) config.KeyID = c.KeyID; else errors.push({ field: 'KeyID', message: 'must be letters, digits, dot, dash or underscore, up to 64' }); }
+  if (has('KeyID')) { if (typeof c.KeyID === 'string' && (c.KeyID === '' || (KEY_ID.test(c.KeyID) && maskText(c.KeyID) === c.KeyID))) config.KeyID = c.KeyID; else errors.push({ field: 'KeyID', message: 'must be a plain name: letters, digits, dot, dash or underscore, up to 64, and not something that looks like personal data or a secret' }); }
   if (has('PublicKey') && c.PublicKey !== '' && c.PublicKey !== null) {
     try { const k = parsePublicJwk(c.PublicKey); publicKey = k; config.PublicKey = JSON.stringify(k.jwk); } catch (e) { errors.push({ field: 'PublicKey', message: e instanceof SealError ? e.message : 'not a usable key' }); }
   }

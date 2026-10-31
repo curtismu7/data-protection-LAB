@@ -1,5 +1,5 @@
 // These tests drive the real UI against the real Express app (started on a loopback port inside the test), so a green run means the pieces
-// actually work together: real story data, real engine, the regex worker, and in Live the real sealing, opened by the page's own WebCrypto code.
+// actually work together: real story data, real engine, the regex child process, and in Live the real sealing, opened by the page's own WebCrypto code.
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -14,7 +14,7 @@ import { visible } from "./safeText";
 import { forgetWorkspace } from "./workspace";
 
 let server; let base; let runner; const realFetch = globalThis.fetch; let seen = [];
-let delay = () => 0;
+let delay = () => 0; let pending = 0;
 beforeAll(async () => {
   runner = createRegexRunner();
   const health = createHealth({ runChecks: async () => [], intervalMs: 3_600_000 });
@@ -23,8 +23,8 @@ beforeAll(async () => {
   globalThis.fetch = async (u, init = {}) => {
     const url = typeof u === "string" && u.startsWith("/") ? `${base}${u}` : u;
     seen.push({ url: String(url), body: typeof init.body === "string" ? init.body : "" });
-    const ms = delay(String(url), init); if (ms) await new Promise((r) => setTimeout(r, ms));
-    return realFetch(url, { ...init, headers: { origin: base, ...(init.headers || {}) } });
+    const ms = delay(String(url), init); pending++;
+    try { if (ms) await new Promise((r) => setTimeout(r, ms)); return await realFetch(url, { ...init, headers: { origin: base, ...(init.headers || {}) } }); } finally { pending--; }
   };
 });
 afterAll(async () => { globalThis.fetch = realFetch; await new Promise((r) => server.close(r)); await runner.close(); });
@@ -207,7 +207,8 @@ describe("detect tab", () => {
     await click("sc-secret");
     await click("sc-ordinary");
     await waitFor(() => expect(verdict()).toHaveTextContent("ALLOW"), T);
-    await new Promise((r) => setTimeout(r, 900));
+    await waitFor(() => expect(pending).toBe(0), T); // the slow earlier request has now answered
+    await new Promise((r) => setTimeout(r, 50));
     expect(verdict()).toHaveTextContent("ALLOW");
     expect(screen.getByTestId("sc-ordinary")).toHaveAttribute("aria-pressed", "true");
   }, 60000);
@@ -227,7 +228,7 @@ describe("your rules tab", () => {
     expect(screen.queryByTestId("import-added")).toBeNull();
     await click("sample-redos");
     await waitFor(() => expect(screen.getByTestId("import-errors")).toHaveTextContent(/nested quantifiers/), T);
-    expect(screen.getByTestId("rules-note")).toHaveTextContent(/worker thread with a hard time limit/);
+    expect(screen.getByTestId("rules-note")).toHaveTextContent(/separate child process that is killed/);
   }, 90000);
 
   it("Live: paste, import, the rule starts in observe, Detect shows what it would have caught, promote makes it decide", async () => {

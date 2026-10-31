@@ -1,5 +1,5 @@
 // The lab's inspection engine. Everything here is LAB-WRITTEN stand-in detection (phrase rules, the checksum-validated personal-data kinds,
-// the secret detectors, and pasted rules run in a worker). It is not Ping's rule set. A policy turns finding scores into graduated outcomes:
+// the secret detectors, and pasted rules run in a child process). It is not Ping's rule set. A policy turns finding scores into graduated outcomes:
 // allow, alert, sanitize (redact the offending span, forward the rest) or block, with thresholds per category and per-key / per-app overrides.
 // Responses never carry a detected value: only the rule, the category, the score, the offsets and a masked display copy of the text.
 import { CATEGORIES, DEFAULT_THRESHOLDS, ROLES, THRESHOLD_FIELDS, TIERS, TIER_RANK, isCategory, isRole, isSurface, roleDirection, SURFACES, CATEGORY_IDS } from './categories.js';
@@ -7,8 +7,10 @@ import { PII_KIND_IDS, PII_KINDS, detectPii, piiKind } from './pii.js';
 import { detectSecrets } from './secrets.js';
 import { splitInlineFlags } from './safeRegex.js';
 import { shannon } from './secrets.js';
+import { maskText } from './mask.js';
 import { RUNNER_LIMITS, RegexTimeout, sharedRunner } from './regexRunner.js';
 import { InputError } from './errors.js';
+import { mapSpan, normalise } from './normalize.js';
 
 export const GUARD_LIMITS = { text: RUNNER_LIMITS.textChars, frames: 20, frameChars: 2000, carry: 128, keys: 10, apps: 10 };
 
@@ -44,18 +46,6 @@ export const BUILTIN_RULE_IDS = BUILTIN_RULES.map((r) => r.id);
 const INDIRECT_BONUS = 0.15; // lab-invented: content the user never typed is scored higher than the same words typed by the user
 const HIDDEN_RUN = /[​-‏⁠‪-‮⁦-⁩﻿]+|[\u{e0000}-\u{e007f}]+/gu;
 const COMMENT_INSTR = /<!--[^>]{0,400}?(?:ignore|instruction|assistant|do not tell)[^>]{0,400}?-->/gi;
-const ZERO_WIDTH = /[​-‏⁠‪-‮⁦-⁩﻿]/;
-
-function normalise(text) {
-  const chars = []; const map = []; let space = false;
-  for (let i = 0; i < text.length; i++) {
-    const ch = text[i];
-    if (ZERO_WIDTH.test(ch)) continue;
-    if (/\s/.test(ch)) { if (!space) { chars.push(' '); map.push(i); space = true; } continue; }
-    space = false; const lc = ch.toLowerCase(); chars.push(lc.length === 1 ? lc : ch); map.push(i);
-  }
-  return { norm: chars.join(''), map };
-}
 
 function schemaFindings(text, role) {
   if (role !== 'tool_call') return [];
@@ -73,20 +63,21 @@ function schemaFindings(text, role) {
 
 export function builtinFindings(text, { role, piiKinds }) {
   const out = [];
-  const { norm, map } = normalise(text);
+  const n = normalise(text, { lower: true }); // case, whitespace runs, zero-width characters and fullwidth forms do not hide a phrase
   const user = role === 'user_prompt';
   for (const r of BUILTIN_RULES) {
     if (r.roles && !r.roles.includes(role)) continue;
-    for (const m of norm.matchAll(r.re)) {
-      const start = map[m.index]; const end = map[m.index + m[0].length - 1] + 1;
+    for (const m of n.norm.matchAll(r.re)) {
+      const o = mapSpan(n, m.index, m.index + m[0].length);
       const indirect = r.category === 'prompt_injection' && !user;
-      out.push({ id: r.id, category: indirect ? 'indirect_injection' : r.category, score: Math.min(1, r.score + (indirect ? INDIRECT_BONUS : 0)), start, end, source: 'builtin' });
+      out.push({ id: r.id, category: indirect ? 'indirect_injection' : r.category, score: Math.min(1, r.score + (indirect ? INDIRECT_BONUS : 0)), start: o.start, end: o.end, source: 'builtin' });
     }
   }
-  for (const m of text.matchAll(HIDDEN_RUN)) { if (m.index === 0 && m[0] === '﻿') continue; out.push({ id: 'hid-invisible-characters', category: 'hidden_instructions', score: 0.7, start: m.index, end: m.index + m[0].length, source: 'builtin' }); }
+  for (const m of text.matchAll(HIDDEN_RUN)) { if (m.index === 0 && m[0] === '\ufeff') continue; out.push({ id: 'hid-invisible-characters', category: 'hidden_instructions', score: 0.7, start: m.index, end: m.index + m[0].length, source: 'builtin' }); }
   for (const m of text.matchAll(COMMENT_INSTR)) out.push({ id: 'hid-comment-instruction', category: 'hidden_instructions', score: 0.8, start: m.index, end: m.index + m[0].length, source: 'builtin' });
   for (const f of schemaFindings(text, role)) out.push({ ...f, source: 'builtin' });
-  for (const f of detectPii(text, piiKinds.length ? piiKinds : null)) out.push({ id: f.kind, category: 'pii', score: piiKind(f.kind).score, start: f.start, end: f.end, source: 'pii' });
+  // Every kind is always FOUND (so its value is always masked in the display copy); PIIKinds only decides which ones are SCORED.
+  for (const f of detectPii(text, null)) out.push({ id: f.kind, category: 'pii', score: piiKind(f.kind).score, start: f.start, end: f.end, source: 'pii', filtered: piiKinds.length > 0 && !piiKinds.includes(f.kind) });
   for (const f of detectSecrets(text)) out.push({ id: f.rule, category: 'secrets', score: f.score, start: f.start, end: f.end, source: 'secret' });
   return out;
 }
@@ -101,7 +92,7 @@ function checkCategories(cats, where, errors) {
   const out = {};
   if (!isObj(cats)) { errors.push({ field: `${where}Categories`, message: 'must be an object' }); return out; }
   for (const [id, th] of Object.entries(cats)) {
-    if (!isCategory(id)) { errors.push({ field: `${where}Categories`, message: `unknown category ${id.slice(0, 30).replace(/[^\w-]/g, '?')}` }); continue; }
+    if (!isCategory(id)) { errors.push({ field: `${where}Categories`, message: 'unknown category' }); continue; }
     if (!isObj(th)) { errors.push({ field: `${where}Categories.${id}`, message: 'must be an object' }); continue; }
     const t = {};
     for (const f of THRESHOLD_FIELDS) {
@@ -129,7 +120,7 @@ function checkOverrides(map, name, errors) {
   const ids = Object.keys(map);
   if (ids.length > GUARD_LIMITS.keys) { errors.push({ field: name, message: `at most ${GUARD_LIMITS.keys} entries` }); return out; }
   for (const id of ids) {
-    if (!ID.test(id)) { errors.push({ field: name, message: 'ids are lowercase letters, digits and dashes' }); continue; }
+    if (!ID.test(id) || maskText(id) !== id) { errors.push({ field: name, message: 'ids are plain names: lowercase letters, digits and dashes, not something that looks like personal data or a secret' }); continue; }
     const o = map[id]; if (!isObj(o)) { errors.push({ field: `${name}.${id}`, message: 'must be an object' }); continue; }
     const e = {};
     if (Object.hasOwn(o, 'Categories')) e.Categories = checkCategories(o.Categories, `${name}.${id}.`, errors);
@@ -168,25 +159,36 @@ export function tierFor(score, th) {
 }
 const thresholdsOf = (eff, category) => (Object.hasOwn(eff.Categories, category) ? eff.Categories[category] : DEFAULT_THRESHOLDS[category]);
 
-// ---- pasted rules (run in the worker) ------------------------------------------------------------------------------------------------------
-async function customFindings(text, { rules, surface, runner }) {
+// ---- pasted rules (run in a child process) -----------------------------------------------------------------------------------------------------
+// One job per rule, so a rule that runs out of time is known by name and is QUARANTINED: it is skipped from then on in this workspace and the
+// skip is reported. A whole inspection has a time budget, and the runner queues per workspace, so one workspace's slow rule cannot starve another's.
+export const CUSTOM_BUDGET_MS = 4000;
+async function customFindings(text, { rules, surface, runner, owner, quarantine, budgetMs = CUSTOM_BUDGET_MS }) {
   const out = []; const errors = [];
   const low = text.toLowerCase();
   const live = rules.filter(({ rule }) => (!rule.AppliesTo.length || rule.AppliesTo.includes(surface)) && (!rule.Keywords.length || rule.Keywords.some((k) => low.includes(k))));
-  if (!live.length) return { out, errors };
-  const jobs = live.map(({ rule }) => { const s = splitInlineFlags(rule.Pattern); return { id: rule.ID, source: s.source, flags: s.flags, group: rule.ValueGroup, allow: rule.Allowlist.map((a) => { const x = splitInlineFlags(a); return { source: x.source, flags: x.flags }; }) }; });
-  let res;
-  try { res = await runner.scan({ jobs, text }); } catch (e) { errors.push(e instanceof RegexTimeout ? 'a pasted rule was stopped after the time limit and skipped' : 'pasted rules could not run'); return { out, errors }; }
-  const byId = new Map(live.map((l) => [l.rule.ID, l]));
-  for (const m of res.matches) {
-    const { rule, enforcement } = byId.get(m.id);
-    if (rule.Entropy > 0 && shannon(text.slice(m.start, m.end)) < rule.Entropy) continue;
-    out.push({ id: rule.ID, category: rule.Category, score: rule.Score, start: m.start, end: m.end, source: 'custom', observe: enforcement === 'observe', owasp: rule.OWASP });
+  const started = Date.now();
+  for (const { rule, enforcement } of live) {
+    if (quarantine?.has(rule.ID)) { errors.push(`${rule.ID} is disabled: it ran out of time earlier and is skipped`); continue; }
+    const left = budgetMs - (Date.now() - started);
+    if (left <= 0) { errors.push(`${rule.ID} was skipped: the time budget for this inspection was used up`); continue; }
+    const s = splitInlineFlags(rule.Pattern);
+    const job = { id: rule.ID, source: s.source, flags: s.flags, group: rule.ValueGroup, allow: rule.Allowlist.map((a) => { const x = splitInlineFlags(a); return { source: x.source, flags: x.flags }; }) };
+    let res;
+    try { res = await runner.scan({ jobs: [job], text }, Math.min(left, runner.timeoutMs ?? left), owner); } catch (e) {
+      if (e instanceof RegexTimeout) { quarantine?.set(rule.ID, 'timed out'); errors.push(`${rule.ID} ran out of time, was stopped and is now disabled`); } else if (e?.code === 'busy') errors.push(`${rule.ID} was skipped: too many inspections are queued for this workspace`); else errors.push(`${rule.ID} could not run`);
+      continue;
+    }
+    for (const m of res.matches) {
+      if (rule.Entropy > 0 && shannon(text.slice(m.start, m.end)) < rule.Entropy) continue;
+      out.push({ id: rule.ID, category: rule.Category, score: rule.Score, start: m.start, end: m.end, source: 'custom', observe: enforcement === 'observe', owasp: rule.OWASP });
+    }
   }
   return { out, errors };
 }
 
 // ---- inspection ----------------------------------------------------------------------------------------------------------------------------------
+// The DISPLAY copy masks EVERYTHING any detector found (whatever the policy scores, narrows or observes) plus any extra spans a stream adds.
 function displayFor(text, findings, redactPred, forwarded) {
   const sorted = findings.filter((f) => f.end > f.start).sort((a, b) => a.start - b.start || b.end - a.end);
   const merged = [];
@@ -207,11 +209,14 @@ export async function inspect(text, ctx) {
   if (!isRole(role)) throw new InputError('bad_role', 'unknown role');
   if (!isSurface(surface)) throw new InputError('bad_surface', 'unknown surface');
   const eff = ctx.effective || resolvePolicy(policy || defaultPolicy(), ctx.scope);
-  let findings = builtinFindings(text, { role, piiKinds: eff.PIIKinds.filter((k) => k.startsWith('pii-')) });
-  const custom = await customFindings(text, { rules, surface, runner });
-  findings = findings.concat(custom.out);
-  // PIIKinds also narrows a tenant's own pii rules (swagger: "pii-ssn, pii-credit-card, a tenant's own cst-... rule").
-  if (eff.PIIKinds.length) findings = findings.filter((f) => !(f.source === 'custom' && f.category === 'pii') || eff.PIIKinds.includes(f.id));
+  const all = builtinFindings(text, { role, piiKinds: eff.PIIKinds.filter((k) => k.startsWith('pii-')) });
+  const custom = await customFindings(text, { rules, surface, runner, owner: ctx.owner, quarantine: ctx.quarantine, budgetMs: ctx.budgetMs });
+  for (const f of custom.out) {
+    // PIIKinds also narrows a tenant's own pii rules (swagger: "pii-ssn, pii-credit-card, a tenant's own cst-... rule"): narrowed out = not scored, still masked.
+    all.push({ ...f, filtered: f.category === 'pii' && eff.PIIKinds.length > 0 && !eff.PIIKinds.includes(f.id) });
+  }
+  for (const x of ctx.extraMask || []) all.push({ id: 'split-value', category: 'secrets', score: 0, start: x.start, end: x.end, source: 'extra', extra: true });
+  const findings = all.filter((f) => !f.filtered && !f.extra);
   for (const f of findings) { f.tier = tierFor(f.score, thresholdsOf(eff, f.category)); f.length = f.end - f.start; }
   const enforced = findings.filter((f) => !f.observe);
   const cats = new Map();
@@ -224,36 +229,55 @@ export async function inspect(text, ctx) {
     .sort((a, b) => TIER_RANK[b.tier] - TIER_RANK[a.tier] || b.score - a.score);
   const decision = categories.reduce((d, c) => (TIER_RANK[c.tier] > TIER_RANK[d] ? c.tier : d), 'allow');
   const forwarded = decision !== 'block';
-  const sanitizeSpan = (f) => decision === 'sanitize' && !f.observe && thresholdsOf(eff, f.category).SanitizeThreshold > 0 && f.score >= thresholdsOf(eff, f.category).SanitizeThreshold;
-  const shown = displayFor(text, findings, sanitizeSpan, forwarded);
+  const sanitizeSpan = (f) => !f.filtered && !f.extra && !f.observe && decision === 'sanitize' && thresholdsOf(eff, f.category).SanitizeThreshold > 0 && f.score >= thresholdsOf(eff, f.category).SanitizeThreshold;
+  const shown = displayFor(text, all, sanitizeSpan, forwarded);
   const observed = findings.filter((f) => f.observe && f.tier !== 'allow').map((f) => ({ rule: f.id, category: f.category, score: f.score, wouldHave: f.tier }));
-  return {
+  const result = {
     decision, forwarded, scope: eff.scope, categories,
     findings: findings.map((f) => ({ rule: f.id, category: f.category, score: Math.round(f.score * 100) / 100, source: f.source, tier: f.tier, observe: !!f.observe, start: f.start, end: f.end, length: f.length })),
-    observed, text: shown.text, redactedSpans: shown.redacted, ruleErrors: custom.errors, length: text.length,
+    observed, text: maskText(shown.text), redactedSpans: shown.redacted, ruleErrors: custom.errors, length: text.length,
   };
+  // Every span any detector found (offsets only), for the stream's split-value masking. Not part of the JSON.
+  Object.defineProperty(result, 'spans', { value: all.filter((f) => !f.extra).map((f) => ({ start: f.start, end: f.end, id: f.id })), enumerable: false });
+  return result;
 }
 
-// Frames of a streamed MCP response, one by one. A flagged (blocked) frame is withheld and the session carries on. The tail of the previous
-// frame is carried into the next inspection so a secret split across two frames is still seen; that carry is 128 characters (a lab limit).
+// Frames of a streamed MCP response, one by one. A flagged (blocked) frame is withheld and the session carries on. A rolling tail of the
+// last 128 characters of the WHOLE stream is joined to each frame before inspecting it, so a value split over two, three or many frames is
+// seen. The lab forwards frames as they arrive, so the earlier parts of such a value were already forwarded when its last part arrives: the
+// frame that completes it is withheld, and the displayed copies of the earlier frames are masked in the response. A value split by more than
+// 128 characters is not seen. (A real gateway could hold the tail back; the lab does not.)
 export async function inspectStream(frames, ctx) {
   if (!Array.isArray(frames) || frames.length === 0 || frames.length > GUARD_LIMITS.frames || frames.some((f) => typeof f !== 'string' || f.length > GUARD_LIMITS.frameChars)) throw new InputError('bad_frames', `frames must be 1 to ${GUARD_LIMITS.frames} strings of at most ${GUARD_LIMITS.frameChars} characters`);
   const eff = ctx.effective || resolvePolicy(ctx.policy || defaultPolicy(), ctx.scope);
-  const out = []; let carry = '';
   const role = ctx.role || 'tool_result';
+  const base = { ...ctx, effective: eff, role };
+  const results = []; const extras = frames.map(() => new Set());
+  let tail = ''; let origin = [];
   for (let i = 0; i < frames.length; i++) {
-    const own = await inspect(frames[i], { ...ctx, effective: eff, role });
+    const own = await inspect(frames[i], base);
     let decision = own.decision; let note = '';
-    if (carry) {
-      // An enforced finding that starts in the carried tail and ends in this frame is a value split across frames.
-      const joined = await inspect(carry + frames[i], { ...ctx, effective: eff, role });
-      const straddle = joined.findings.filter((f) => !f.observe && f.start < carry.length && f.end > carry.length);
+    if (tail) {
+      const joined = await inspect(tail + frames[i], base);
+      const straddle = joined.findings.filter((f) => !f.observe && f.start < tail.length && f.end > tail.length);
       const tier = straddle.reduce((d, f) => (TIER_RANK[f.tier] > TIER_RANK[d] ? f.tier : d), 'allow');
-      if (TIER_RANK[tier] > TIER_RANK[decision]) { decision = tier === 'alert' ? 'alert' : 'block'; note = 'a value split across this frame and the one before'; }
+      if (TIER_RANK[tier] > TIER_RANK[decision]) { decision = tier === 'alert' ? 'alert' : 'block'; note = 'a value split across this frame and the ones before'; }
+      for (const sp of joined.spans.filter((x) => x.start < tail.length && x.end > tail.length)) {
+        for (let k = sp.start; k < sp.end; k++) { if (k < tail.length) extras[origin[k][0]].add(origin[k][1]); else extras[i].add(k - tail.length); }
+      }
     }
-    out.push({ index: i + 1, decision, withheld: decision === 'block', text: decision === 'block' ? '' : own.text, categories: own.categories.map((c) => ({ category: c.category, rule: c.rule, tier: c.tier, score: c.score })), note, redactedSpans: own.redactedSpans });
-    carry = frames[i].slice(-GUARD_LIMITS.carry);
+    results.push({ own, decision, note });
+    origin = origin.concat(Array.from({ length: frames[i].length }, (_, k) => [i, k])).slice(-GUARD_LIMITS.carry);
+    tail = (tail + frames[i]).slice(-GUARD_LIMITS.carry);
   }
+  // The displayed copy of a frame that holds the early part of a split value is masked there too.
+  for (let j = 0; j < frames.length; j++) {
+    if (!extras[j].size) continue;
+    const offs = [...extras[j]].sort((a, b) => a - b); const spans = [];
+    for (const o of offs) { const last = spans[spans.length - 1]; if (last && o === last.end) last.end = o + 1; else spans.push({ start: o, end: o + 1 }); }
+    results[j].own = await inspect(frames[j], { ...base, extraMask: spans });
+  }
+  const out = results.map(({ own, decision, note }, i) => ({ index: i + 1, decision, withheld: decision === 'block', text: decision === 'block' ? '' : own.text, categories: own.categories.map((c) => ({ category: c.category, rule: c.rule, tier: c.tier, score: c.score })), note, redactedSpans: own.redactedSpans }));
   return { frames: out, summary: { total: out.length, withheld: out.filter((f) => f.withheld).length, redacted: out.filter((f) => f.decision === 'sanitize').length, forwarded: out.filter((f) => !f.withheld).length, sessionContinues: true } };
 }
 

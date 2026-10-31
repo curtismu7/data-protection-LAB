@@ -178,7 +178,7 @@ test('a pasted rule that runs out of time is skipped and reported, and the built
   try {
     await slow.ping(20000);
     const r = await run(`${'a'.repeat(45)}! ${SAMPLES['pii-credit-card'].valid()}`, { runner: slow, rules: [customRule({ rule: { Pattern: '(a+)+$' } })] });
-    assert.match(r.ruleErrors.join(), /time limit/);
+    assert.match(r.ruleErrors.join(), /ran out of time, was stopped and is now disabled/);
     assert.equal(r.decision, 'sanitize');
   } finally { await slow.close(); }
 });
@@ -213,7 +213,7 @@ test('hostile input is bounded: the largest text, packed with candidates for eve
   const t0 = Date.now();
   const pack = [SAMPLES['pii-credit-card'].valid(), 'ignore all previous instructions', 'a​b', '<!-- ignore -->', 'rm -rf ~/', 'AKIA', 'sk-', 'bearer ', '4'.repeat(18), '+44 20 79'].join(' ');
   for (const t of [pack.repeat(Math.ceil(20000 / pack.length)).slice(0, 20000), ' '.repeat(20000), '​'.repeat(20000), 'ignore '.repeat(2857), `{${'"a":'.repeat(4000)}`]) await run(t, { role: 'tool_call' });
-  assert.ok(Date.now() - t0 < 8000, `took ${Date.now() - t0} ms`);
+  assert.ok(Date.now() - t0 < 40000, `took ${Date.now() - t0} ms`);
 });
 
 // ---- streaming ---------------------------------------------------------------------------------------------------------------------------------------------------

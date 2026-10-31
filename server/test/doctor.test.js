@@ -10,7 +10,7 @@ const checks = (o = {}) => runChecks({ runner, ...o });
 test('every doctor check passes on a clean default environment', async () => {
   const c = await checks({ env: { HOME: '/nonexistent' } });
   assert.ok(allPassed(c), JSON.stringify(c.filter((x) => x.level === 'fail')));
-  for (const id of ['node', 'mode', 'bind', 'port-range', 'settings-file', 'scenarios', 'mock-table', 'kinds-and-detectors', 'regex-guard', 'worker-netguard', 'policy', 'sealing', 'story-tokens', 'verticals', 'story-hosts', 'story-keys', 'diagrams', 'netguard', 'tenant']) assert.ok(c.some((x) => x.id === id), id);
+  for (const id of ['node', 'mode', 'bind', 'port-range', 'settings-file', 'scenarios', 'mock-table', 'kinds-and-detectors', 'regex-guard', 'child-netguard', 'policy', 'sealing', 'story-tokens', 'verticals', 'story-hosts', 'story-keys', 'diagrams', 'netguard', 'tenant']) assert.ok(c.some((x) => x.id === id), id);
 });
 
 test('a port outside 7200-7249 fails, and a wildcard bind needs the opt-in', async () => {

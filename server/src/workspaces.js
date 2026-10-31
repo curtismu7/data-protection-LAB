@@ -17,7 +17,8 @@ export function workspaceFrom(req) {
 
 export function createWorkspaces({ max = 500, ttlMs = 60 * 60 * 1000, now = Date.now } = {}) {
   const map = new Map(); // id -> state; insertion order = oldest first
-  const fresh = () => ({ events: [], records: [], promptLog: defaultPromptLog(), publicKey: null, rules: [], seq: 0, at: now() });
+  const locks = new Map(); // per-workspace async mutex tails
+  const fresh = () => ({ events: [], records: [], promptLog: defaultPromptLog(), publicKey: null, rules: [], quarantine: new Map(), seq: 0, at: now() });
   const sweep = () => {
     const t = now();
     for (const [id, v] of map) { if (t - v.at > ttlMs) map.delete(id); else break; }
@@ -35,7 +36,23 @@ export function createWorkspaces({ max = 500, ttlMs = 60 * 60 * 1000, now = Date
     addEvent(id, ev) { const v = touch(id); v.events = [...v.events, { ...ev, at: new Date(now()).toISOString() }].slice(-MAX_EVENTS); },
     addRecord(id, rec) { const v = touch(id); v.records = [...v.records, rec].slice(-MAX_RECORDS); },
     setPromptLog(id, config, publicKey) { const v = touch(id); v.promptLog = config; v.publicKey = publicKey; },
-    addRules(id, rules) { const v = touch(id); v.rules = [...v.rules, ...rules.map((rule) => ({ rule, enforcement: 'observe' }))].slice(0, MAX_RULES); },
+    // Throws (so the whole paste is refused) instead of dropping rules or adding a duplicate id.
+    addRules(id, rules) {
+      const v = touch(id);
+      const ids = new Set(v.rules.map((r) => r.rule.ID));
+      for (const r of rules) { if (ids.has(r.ID)) throw new Error('duplicate_rule'); ids.add(r.ID); }
+      if (v.rules.length + rules.length > MAX_RULES) throw new Error('rule_cap');
+      v.rules = [...v.rules, ...rules.map((rule) => ({ rule, enforcement: 'observe' }))];
+    },
+    quarantine: (id) => touch(id).quarantine,
+    // Run fn after every earlier lock holder for this workspace has finished: concurrent imports cannot interleave their check and their add.
+    async lock(id, fn) {
+      const prev = locks.get(id) || Promise.resolve();
+      let release; const mine = new Promise((r) => { release = r; });
+      const tail = prev.then(() => mine); locks.set(id, tail);
+      await prev;
+      try { return await fn(); } finally { release(); if (locks.get(id) === tail) locks.delete(id); }
+    },
     setEnforcement(id, ruleId, enforcement) { const v = touch(id); const r = v.rules.find((x) => x.rule.ID === ruleId); if (!r) return false; r.enforcement = enforcement; return true; },
     reset(id) { map.delete(id); },
     size() { return map.size; },

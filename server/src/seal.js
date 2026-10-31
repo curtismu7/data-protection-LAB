@@ -22,13 +22,24 @@ export function parsePublicJwk(input) {
   if (o.kty !== 'OKP' || o.crv !== 'X25519') throw new SealError('bad_key', 'the key must be an X25519 public JWK (kty OKP, crv X25519)');
   const x = fromB64u(o.x);
   if (!x || x.length !== 32) throw new SealError('bad_key', 'the key x value must be 32 bytes, base64url');
+  // A key the server can seal to AND the browser can open: bit 255 clear (the browser derives its HKDF salt from its own x, so a set bit seals
+  // but cannot be opened), and a real key agreement with a throwaway key must work and give a non-zero secret (a low-order point is refused).
+  if (x[31] & 0x80) throw new SealError('bad_key', 'the key x value is not a canonical X25519 public key (the top bit must be clear)');
+  try {
+    const probe = createPrivateKey({ key: Buffer.concat([PKCS8_X25519, randomBytes(32)]), format: 'der', type: 'pkcs8' });
+    const secret = diffieHellman({ privateKey: probe, publicKey: createPublicKey({ key: { kty: 'OKP', crv: 'X25519', x: b64u(x) }, format: 'jwk' }) });
+    if (!secret.some((b) => b !== 0)) throw new Error('zero');
+  } catch { throw new SealError('bad_key', 'the key is not a usable X25519 public key (a low-order point is refused)'); }
   return { x, jwk: { kty: 'OKP', crv: 'X25519', x: b64u(x) } };
 }
 
 const aadOf = (kid, rid) => Buffer.from(`${SEAL_VERSION}|${kid}|${rid}`, 'utf8');
 export const infoOf = (kid) => Buffer.from(`${SEAL_VERSION}|aes-256-gcm|${kid}`, 'utf8');
 
+// '|' separates the HKDF info and the AAD fields. It is unambiguous because kid is restricted to [A-Za-z0-9._-] (promptlog.js) and rid is hex we
+// generate; this guard makes the encoding refuse anything else instead of relying on the callers.
 export function sealRecord({ publicKey, keyId, recordId, plaintext, random = randomBytes }) {
+  if (!/^[A-Za-z0-9._-]{1,64}$/.test(keyId) || !/^[A-Za-z0-9._-]{1,64}$/.test(recordId)) throw new SealError('bad_id', 'key and record ids are plain names');
   const recipient = publicKey.x;
   const seed = random(32);
   const priv = createPrivateKey({ key: Buffer.concat([PKCS8_X25519, seed]), format: 'der', type: 'pkcs8' });

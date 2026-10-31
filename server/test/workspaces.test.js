@@ -13,7 +13,9 @@ test('workspaces are isolated, events, records and rules are bounded, reset is p
   const w = createWorkspaces();
   for (let i = 0; i < MAX_EVENTS + 5; i++) w.addEvent('a', { id: `e${i}` });
   for (let i = 0; i < MAX_RECORDS + 5; i++) w.addRecord('a', { id: `r${i}` });
-  w.addRules('a', Array.from({ length: MAX_RULES + 5 }, (_, i) => ({ ID: `cst-${i}` })));
+  w.addRules('a', Array.from({ length: MAX_RULES }, (_, i) => ({ ID: `cst-${i}` })));
+  assert.throws(() => w.addRules('a', [{ ID: 'cst-extra' }]), /rule_cap/, 'the cap refuses, it does not silently slice');
+  assert.throws(() => w.addRules('a', [{ ID: 'cst-1' }]), /duplicate_rule|rule_cap/);
   w.addEvent('b', { id: 'x' });
   assert.deepEqual([w.events('a').length, w.records('a').length, w.rules('a').length], [MAX_EVENTS, MAX_RECORDS, MAX_RULES]);
   assert.equal(w.events('a').at(-1).id, `e${MAX_EVENTS + 4}`);

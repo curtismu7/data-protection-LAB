@@ -144,7 +144,7 @@ export default function DetectTab({ story, mode, policy, setPolicy, resetSignal 
     <div className="stack">
       <section className="panel">
         <h2 className="panel__title">Detect: content inspected in and out <ClaimTag label={story.claimLabel} /></h2>
-        <p className="muted" data-testid="detect-mode-note">{live ? "Live: the real local engine inspects the action or your own text: real checksums, real rule matching (pasted rules run in a worker), and real sealing if prompt logging is set up. Nothing leaves this machine." : "Mock: the outcome comes from a table generated from the same engine, under the default policy. Switch to Live to edit the policy, type your own text and use your own rules."}</p>
+        <p className="muted" data-testid="detect-mode-note">{live ? "Live: the real local engine inspects the action or your own text: real checksums, real rule matching (pasted rules run in a child process), and real sealing if prompt logging is set up. Nothing leaves this machine." : "Mock: the outcome comes from a table generated from the same engine, under the default policy. Switch to Live to edit the policy, type your own text and use your own rules."}</p>
         <p className="muted" data-testid="limits">{story.limitsText}</p>
         <h3 className="panel__sub">Action</h3>
         <div className="seg" role="group" aria-label="Action">

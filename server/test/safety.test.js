@@ -29,7 +29,7 @@ test('reserved hosts and the host scan', () => {
   assert.ok(isReservedHost('a.b.invalid')); assert.ok(isReservedHost('mcp.fabrikam.example')); assert.ok(!isReservedHost('example.com'), 'the rulebook allows only .example and .invalid'); assert.ok(!isReservedHost('example.org')); assert.ok(!isReservedHost('sub.example.com'));
   assert.deepEqual(scanHosts('https://as.example.invalid/x and mail a@agent.example and http://localhost:7200/'), []);
   assert.deepEqual(scanHosts('https://example.com/mcp'), ['example.com']);
-  assert.deepEqual(scanHosts('see https://real.com/x and 10.1.2.3'), ['10.1.2.3', 'real.com']);
+  assert.deepEqual(scanHosts('see https://real.example.com/x and 10.1.2.3'), ['10.1.2.3', 'real.example.com']);
 });
 
 test('key scan: only sk-MOCK- values are allowed in shipped text', () => {

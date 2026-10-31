@@ -20,11 +20,11 @@ const ID = /^[a-z0-9-]{1,40}$/;
 // A free-text label (person, agent, application) is cleaned and then passed through the same inspection as content, pasted rules included,
 // so a value a built-in detector or one of the visitor's own rules recognises is masked in it.
 // maskFull masks text of any length (in chunks of at most 20000 characters) with the built-in detectors AND the visitor's own rules.
-async function maskFull(text, { rules, runner }) {
+async function maskFull(text, { rules, runner, owner, quarantine }) {
   const t = String(text); let out = '';
   for (let i = 0; i < t.length; i += GUARD_LIMITS.text) {
     const chunk = t.slice(i, i + GUARD_LIMITS.text);
-    const r = await inspect(chunk, { role: 'user_prompt', surface: 'llm', policy: defaultPolicy(), rules, runner });
+    const r = await inspect(chunk, { role: 'user_prompt', surface: 'llm', policy: defaultPolicy(), rules, runner, owner, quarantine });
     out += maskSpans(chunk, r.findings.filter((f) => f.source !== 'builtin').map((f) => ({ start: f.start, end: f.end, id: f.rule })));
   }
   return maskText(out);
@@ -47,7 +47,7 @@ const scopeOf = (s) => {
   if (s === undefined) return {};
   if (s === null || typeof s !== 'object' || Array.isArray(s)) throw new InputError('bad_scope', 'scope must be an object');
   const out = {};
-  for (const k of ['key', 'app']) if (s[k] !== undefined && s[k] !== '') { if (typeof s[k] !== 'string' || !ID.test(s[k])) throw new InputError('bad_scope', `${k} must be lowercase letters, digits and dashes`); out[k] = s[k]; }
+  for (const k of ['key', 'app']) if (s[k] !== undefined && s[k] !== '') { if (typeof s[k] !== 'string' || !ID.test(s[k]) || maskText(s[k]) !== s[k]) throw new InputError('bad_scope', `${k} must be a plain id: lowercase letters, digits and dashes, and not something that looks like personal data or a secret`); out[k] = s[k]; }
   return out;
 };
 const hopper = (trace) => { const hops = []; return { hops, add: (label, request, response) => hops.push({ n: hops.length + 1, label, request: { ...request, headers: { traceparent: formatTraceparent(trace.traceId, trace.span()), ...(request.headers || {}) } }, response }) }; };
@@ -80,9 +80,9 @@ export async function evaluateAction({ mode, cast, vertical, scenario, custom, p
   if (mode === 'mock') {
     evaluation = structuredClone(table.scenarios[vertical][scenario]);
     notes.push('Mock: a row of the generated table under the default policy. Thresholds, kinds, overrides and pasted rules apply in Live only.');
-  } else evaluation = await inspect(call.text, { role: call.role, surface: call.surface, policy, scope: sc, rules: workspaces.rules(ws), runner });
+  } else evaluation = await inspect(call.text, { role: call.role, surface: call.surface, policy, scope: sc, rules: workspaces.rules(ws), runner, owner: ws, quarantine: workspaces.quarantine(ws) });
 
-  const lr = { rules: mode === 'live' ? workspaces.rules(ws) : [], runner };
+  const lr = mode === 'live' ? { rules: workspaces.rules(ws), runner, owner: ws, quarantine: workspaces.quarantine(ws) } : { rules: [], runner, owner: ws };
   const person = await labelOf(labels.person, cast.castAgentId, lr); const agent = await labelOf(labels.agent, cast.castAgent, lr); const app = await labelOf(labels.app, cast.castApp, lr);
   h.add('Client to the gateway', { method: 'POST', url: '/api/evaluate', headers: { 'x-workspace': ws }, body: { mode, role: call.role, surface: call.surface, direction, scope: sc, text: evaluation.text } }, { status: 200, note: 'the text is a masked display copy: detected values never leave the engine' });
   h.add('Gateway to the inspection engine', { inspect: { role: call.role, surface: call.surface, length: evaluation.length, scope: evaluation.scope } }, { decision: evaluation.decision, forwarded: evaluation.forwarded, categories: evaluation.categories.map((c) => ({ category: c.category, rule: c.rule, score: c.score, tier: c.tier })), observed: evaluation.observed });
@@ -93,13 +93,18 @@ export async function evaluateAction({ mode, cast, vertical, scenario, custom, p
     recordSkipped = skipReason(cfg, pk, call.surface);
     let recordId;
     if (!recordSkipped) {
-      const rid = `r-${randomBytes(6).toString('hex')}`; recordId = rid;
+      const rid = `r-${randomBytes(6).toString('hex')}`;
       const pt = plaintextFor(cfg, call.text, call.response);
-      const envelope = sealRecord({ publicKey: pk, keyId: cfg.KeyID, recordId: rid, plaintext: pt.json });
-      const meta = eventFrom({ id: rid, person, agent, app, surface: call.surface, role: call.role, direction, evaluation, recordId: rid });
-      workspaces.addRecord(ws, { ...meta, at: new Date().toISOString(), kid: cfg.KeyID, bytes: Buffer.byteLength(pt.json, 'utf8'), truncated: pt.truncated, hasResponse: pt.hasResponse, envelope });
-      record = { id: rid, kid: cfg.KeyID, bytes: Buffer.byteLength(pt.json, 'utf8'), truncated: pt.truncated, hasResponse: pt.hasResponse };
-      h.add('Gateway to the record store (sealed)', { seal: { rid, kid: cfg.KeyID, to: 'the PublicKey you supplied', bytes: record.bytes } }, { stored: 'ciphertext + clear metadata', envelopeFields: Object.keys(envelope) });
+      let envelope = null;
+      try { envelope = sealRecord({ publicKey: pk, keyId: cfg.KeyID, recordId: rid, plaintext: pt.json }); } catch { recordSkipped = 'sealing failed: check the PublicKey'; }
+      if (envelope) {
+        recordId = rid;
+        const bytes = Buffer.byteLength(pt.json, 'utf8');
+        const meta = eventFrom({ id: rid, person, agent, app, surface: call.surface, role: call.role, direction, evaluation, recordId: rid });
+        workspaces.addRecord(ws, { ...meta, at: new Date().toISOString(), kid: cfg.KeyID, bytes, truncated: pt.truncated, hasResponse: pt.hasResponse, envelope });
+        record = { id: rid, kid: cfg.KeyID, bytes, truncated: pt.truncated, hasResponse: pt.hasResponse };
+        h.add('Gateway to the record store (sealed)', { seal: { rid, kid: cfg.KeyID, to: 'the PublicKey you supplied', bytes } }, { stored: 'ciphertext + clear metadata', envelopeFields: Object.keys(envelope) });
+      }
     }
     workspaces.addEvent(ws, eventFrom({ id: `ev-${workspaces.nextSeq(ws)}`, person, agent, app, surface: call.surface, role: call.role, direction, evaluation, recordId }));
   }
@@ -113,10 +118,10 @@ export async function streamAction({ mode, cast, vertical, scenario, frames, pol
   if (frames === undefined) {
     if (scenario !== undefined && scenario !== STREAM.id) throw new InputError('unknown_scenario', 'unknown stream');
     list = streamFrames(cast);
-    result = mode === 'mock' ? structuredClone(table.stream[vertical]) : await inspectStream(list, { role: STREAM.role, surface: STREAM.surface, policy, scope: sc, rules: workspaces.rules(ws), runner });
+    result = mode === 'mock' ? structuredClone(table.stream[vertical]) : await inspectStream(list, { role: STREAM.role, surface: STREAM.surface, policy, scope: sc, rules: workspaces.rules(ws), runner, owner: ws, quarantine: workspaces.quarantine(ws) });
   } else {
     if (mode !== 'live') throw new InputError('needs_live', 'Mock mode only has the scripted stream: switch to Live to try your own frames');
-    result = await inspectStream(frames, { role: STREAM.role, surface: STREAM.surface, policy, scope: sc, rules: workspaces.rules(ws), runner });
+    result = await inspectStream(frames, { role: STREAM.role, surface: STREAM.surface, policy, scope: sc, rules: workspaces.rules(ws), runner, owner: ws, quarantine: workspaces.quarantine(ws) });
     list = frames;
   }
   h.add('Upstream MCP server to the gateway (frames)', { stream: { frames: result.frames.length, chunk: 'one frame at a time' } }, { note: 'each frame is inspected as it arrives' });
@@ -131,7 +136,10 @@ export async function streamAction({ mode, cast, vertical, scenario, frames, pol
 }
 
 // ---- pasted rules --------------------------------------------------------------------------------------------------------------------------------
-export const rulesView = (ws, workspaces, runner) => maskDeepFull(workspaces.rules(ws).map(({ rule, enforcement }) => ({ ...rule, enforcement })), { rules: workspaces.rules(ws), runner });
+export const rulesView = (ws, workspaces, runner) => {
+  const q = workspaces.quarantine(ws);
+  return maskDeepFull(workspaces.rules(ws).map(({ rule, enforcement }) => ({ ...rule, enforcement, disabled: q.get(rule.ID) || null })), { rules: workspaces.rules(ws), runner, owner: ws, quarantine: q });
+};
 
 export async function importRules({ mode, toml, sample, ws, workspaces, table, runner }) {
   if (mode === 'mock') {
@@ -141,10 +149,17 @@ export async function importRules({ mode, toml, sample, ws, workspaces, table, r
     return { mode, Toml: s.toml, Added: structuredClone(t.Added), Errors: [...t.Errors], rules: [] };
   }
   if (typeof toml !== 'string') throw new InputError('bad_toml', 'toml must be text');
-  const r = await importToml(toml, { existingIds: workspaces.rules(ws).map((x) => x.rule.ID), existingCount: workspaces.rules(ws).length, runner });
-  if (!r.Errors.length) workspaces.addRules(ws, r.Added);
-  const ctx = { rules: workspaces.rules(ws), runner };
-  return maskDeepFull({ mode, ...r, rules: workspaces.rules(ws).map(({ rule, enforcement }) => ({ ...rule, enforcement })) }, ctx);
+  // One import at a time per workspace: the duplicate-id and rule-count checks and the add happen together.
+  const r = await workspaces.lock(ws, async () => {
+    const out = await importToml(toml, { existingIds: workspaces.rules(ws).map((x) => x.rule.ID), existingCount: workspaces.rules(ws).length, runner, owner: ws });
+    if (!out.Errors.length) {
+      try { workspaces.addRules(ws, out.Added); } catch (e) { out.Errors.push(e.message === 'rule_cap' ? `a workspace holds at most ${RULE_LIMITS.rulesPerWorkspace} rules` : 'a rule with this id already exists'); out.Added = []; }
+    }
+    return out;
+  });
+  const q = workspaces.quarantine(ws);
+  const ctx = { rules: workspaces.rules(ws), runner, owner: ws, quarantine: q };
+  return maskDeepFull({ mode, ...r, rules: workspaces.rules(ws).map(({ rule, enforcement }) => ({ ...rule, enforcement, disabled: q.get(rule.ID) || null })) }, ctx);
 }
 
 export function setEnforcement({ ws, workspaces, id, enforcement, runner }) {
@@ -158,7 +173,7 @@ export function setEnforcement({ ws, workspaces, id, enforcement, runner }) {
 export function promptLogStatus(config, publicKey) {
   if (!config.Enabled) return { recording: false, why: 'Prompt logging is off (the default): content is not recorded.' };
   if (!publicKey) return { recording: false, why: 'Enabled, but no public key: nothing is recorded without one.' };
-  return { recording: true, why: `Recording ${config.Surfaces.length ? config.Surfaces.join(', ') : 'every surface'}${config.IncludeResponses ? ', with responses' : ', prompts only'}, sealed to key ${config.KeyID}. Up to ${config.MaxBytes || PL_LIMITS.defaultMaxBytes} bytes a record.` };
+  return { recording: true, why: `Recording ${config.Surfaces.length ? config.Surfaces.join(', ') : 'every surface'}${config.IncludeResponses ? ', with responses' : ', prompts only'}, sealed to key ${config.KeyID}. MaxBytes ${config.MaxBytes || PL_LIMITS.defaultMaxBytes} caps the UTF-8 text of the prompt and response; the sealed JSON wrapper ({prompt, response, truncated}) adds a few dozen bytes more, and the record's reported size is that whole JSON.` };
 }
 export function setPromptLog({ ws, workspaces, config }) {
   const v = validatePromptLog(config);

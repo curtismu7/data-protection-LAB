@@ -18,7 +18,7 @@ The release goes from 5 kinds of personal data to 23, each numeric kind checksum
 
 ## Paste your own rules
 
-Rules paste in unchanged in gitleaks rule format. One bad rule refuses the whole paste and the errors list each refused rule, one per line, so nothing is half-applied. The regular expression is user-supplied, so the lab refuses nested quantifiers, backreferences and lookaround up front, and runs every pattern in a worker thread with a hard time limit. Paste the hostile sample and watch it refused. A new rule starts in observe: it records what it would have caught and changes nothing until you promote it.
+Rules paste in unchanged in gitleaks rule format. One bad rule refuses the whole paste and the errors list each refused rule, one per line, so nothing is half-applied. The regular expression is user-supplied, so the lab refuses nested quantifiers, backreferences and lookaround up front, and runs every pattern in a separate process that is killed if it runs over its time limit. Paste the hostile sample and watch it refused. A new rule starts in observe: it records what it would have caught and changes nothing until you promote it.
 
 ## Sealed to a key only you hold
 
@@ -50,7 +50,7 @@ Challenge: security review now demands precise answers against the OWASP ASI tax
 
 ## Mock and Live
 
-Mock is a set of tables generated from the same engine, with a test that fails if they drift. Live is the real local engine on your own text: real checksums, real rule matching in a worker, real sealing. Typed credentials and personal data are masked in every response, so nothing you try is echoed back. Still nothing leaves the machine.
+Mock is a set of tables generated from the same engine, with a test that fails if they drift. Live is the real local engine on your own text: real checksums, real rule matching in a child process, real sealing. Typed credentials and personal data are masked in every response, so nothing you try is echoed back. Still nothing leaves the machine.
 
 ## What is not proven
 

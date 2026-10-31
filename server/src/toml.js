@@ -3,9 +3,13 @@
 // '''literal''' and """basic""" strings, integers, floats, booleans, arrays of scalars (also over several lines). Everything else is an error.
 // One broken rule does not hide the others: the parser resynchronises at the next table header and reports each bad rule once, so the caller
 // can refuse the WHOLE paste and list every refused rule, one per line.
+import { maskText } from './mask.js';
+
 export const TOML_LIMITS = { bytes: 65536, rules: 50, string: 2000, array: 50, keysPerRule: 20, lineLength: 4000, lines: 2000 };
 
 class Stop extends Error {}
+// A key or table name from the paste is quoted in an error only if it is a plain identifier and no detector recognises it; otherwise it is hidden.
+const safeName = (n) => (/^[A-Za-z_][A-Za-z0-9_.-]{0,29}$/.test(n) && maskText(n) === n ? n : '(name hidden)');
 const KEY = /^[A-Za-z0-9_-]+$/;
 const ESC = { b: '\b', t: '\t', n: '\n', f: '\f', r: '\r', '"': '"', '\\': '\\' };
 
@@ -105,12 +109,12 @@ export function parseToml(input) {
         const name = m[2]; skipLine();
         if (m[1] === '[[' && name === 'rules') {
           if (out.rules.length >= TOML_LIMITS.rules) fail(`more than ${TOML_LIMITS.rules} rules`);
-          rule = { line, fields: {}, allowlist: null, errors: [], broken: false }; out.rules.push(rule); table = 'rule';
+          rule = { line, fields: Object.create(null), allowlist: null, errors: [], broken: false }; out.rules.push(rule); table = 'rule';
         } else if (m[1] === '[' && name === 'rules.allowlist') {
           if (!rule) fail('[rules.allowlist] before any [[rules]]');
-          if (rule.allowlist) { rule.errors.push(`line ${line}: a rule can have one [rules.allowlist]`); rule.broken = true; skipping = true; } else { rule.allowlist = {}; table = 'allow'; }
+          if (rule.allowlist) { rule.errors.push(`line ${line}: a rule can have one [rules.allowlist]`); rule.broken = true; skipping = true; } else { rule.allowlist = Object.create(null); table = 'allow'; }
         } else {
-          if (rule) { rule.errors.push(`line ${line}: table [${m[1] === '[[' ? '[' : ''}${name.slice(0, 40)}${m[1] === '[[' ? ']' : ''}] is not supported (only [[rules]] and [rules.allowlist])`); rule.broken = true; } else out.errors.push(`line ${line}: table [${name.slice(0, 40)}] is not supported (only [[rules]] and [rules.allowlist])`);
+          if (rule) { rule.errors.push(`line ${line}: table [${m[1] === '[[' ? '[' : ''}${safeName(name)}${m[1] === '[[' ? ']' : ''}] is not supported (only [[rules]] and [rules.allowlist])`); rule.broken = true; } else out.errors.push(`line ${line}: table [${safeName(name)}] is not supported (only [[rules]] and [rules.allowlist])`);
           skipping = true;
         }
         continue;
@@ -120,17 +124,17 @@ export function parseToml(input) {
       const km = /^[A-Za-z0-9_-]+/.exec(text.slice(i, i + 80));
       if (!km || !KEY.test(km[0])) fail('expected a key');
       const key = km[0]; i += key.length; skipWs();
-      if (peek() !== '=') fail(`expected = after ${key.slice(0, 30)}`);
+      if (peek() !== '=') fail(`expected = after ${safeName(key)}`);
       adv(); skipWs();
-      if (peek() === '\n' || peek() === undefined) fail(`no value for ${key.slice(0, 30)}`);
+      if (peek() === '\n' || peek() === undefined) fail(`no value for ${safeName(key)}`);
       const lineStart = text.lastIndexOf('\n', i) + 1;
       if (i - lineStart > TOML_LIMITS.lineLength) fail('line is too long');
       const v = value(); skipWs();
       if (peek() === '#') skipLine();
       if (peek() !== undefined && peek() !== '\n') fail('unexpected text after the value');
       const target = table === 'root' ? null : table === 'rule' ? rule.fields : rule.allowlist;
-      if (table === 'root') { if (key === 'title' && typeof v === 'string') out.title = v.slice(0, 200); else fail(`top-level key ${key.slice(0, 30)} is not supported`); continue; }
-      if (Object.hasOwn(target, key)) fail(`${key.slice(0, 30)} is set twice`);
+      if (table === 'root') { if (key === 'title' && typeof v === 'string') out.title = v.slice(0, 200); else fail(`top-level key ${safeName(key)} is not supported`); continue; }
+      if (Object.hasOwn(target, key)) fail(`${safeName(key)} is set twice`);
       if (Object.keys(target).length >= TOML_LIMITS.keysPerRule) fail('too many keys in one table');
       target[key] = v;
     } catch (e) { syntaxError(e); }

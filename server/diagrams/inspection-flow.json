@@ -49,7 +49,7 @@
     },
     {
       "id": "rules",
-      "label": "Your pasted rules (worker, time limit)",
+      "label": "Your pasted rules (child process, time limit)",
       "group": "policy",
       "x": 1100,
       "y": 20
@@ -128,14 +128,14 @@
     },
     {
       "title": "Your rules",
-      "what": "Pasted gitleaks-format rules run in a worker thread with a hard time limit, never in the server's own thread.",
+      "what": "Pasted gitleaks-format rules run in a separate child process that is killed if it runs over its time limit, never in the server's own process.",
       "edges": [
         2
       ]
     },
     {
       "title": "Matches",
-      "what": "The worker returns offsets only. The values stay in the engine and are masked everywhere else.",
+      "what": "The child process returns offsets only. The values stay in the engine and are masked everywhere else.",
       "edges": [
         3
       ]

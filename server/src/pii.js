@@ -4,6 +4,8 @@
 // with a valid sample and a NEAR-MISS sample that must not match (generated at run time from the checksum, so no literal sits in the repo).
 // Candidate patterns are fixed, linear and bounded; nothing here builds a regular expression from user input.
 
+import { mapSpan, normalise } from './normalize.js';
+
 const digits = (s) => s.replace(/\D/g, '');
 
 // ---- checksums -------------------------------------------------------------------------------------------------------------------
@@ -39,8 +41,8 @@ const spans = (re, text, ok) => { const out = []; for (const m of text.matchAll(
 const whole = (m) => ({ start: m.index, end: m.index + m[0].length });
 
 const FINDERS = {
-  'pii-ssn': (t) => spans(/(?<![\d-])(\d{3})-(\d{2})-(\d{4})(?![\d-])/g, t, (m) => (m[1] !== '000' && m[1] !== '666' && +m[1] < 900 && m[2] !== '00' && m[3] !== '0000' ? whole(m) : null)),
-  'pii-credit-card': (t) => spans(/(?<![\d-])\d(?:[ -]?\d){12,18}(?![\d-])/g, t, (m) => {
+  'pii-ssn': (t) => spans(/(?<!\d)(\d{3})[-._ ](\d{2})[-._ ](\d{4})(?!\d)/g, t, (m) => (m[1] !== '000' && m[1] !== '666' && +m[1] < 900 && m[2] !== '00' && m[3] !== '0000' ? whole(m) : null)),
+  'pii-credit-card': (t) => spans(/(?<!\d)\d(?:[ ._-]?\d){12,18}(?!\d)/g, t, (m) => {
     const d = digits(m[0]);
     const brand = /^4(\d{12}|\d{15}|\d{18})$/.test(d) || /^(5[1-5]\d{14}|2(2[2-9]\d|[3-6]\d\d|7[01]\d|720)\d{12})$/.test(d) || /^3[47]\d{13}$/.test(d) || /^(6011|65\d\d)\d{12}$/.test(d);
     return brand && luhnValid(d) ? whole(m) : null;
@@ -52,9 +54,9 @@ const FINDERS = {
     for (let i = 0; i < m[0].length && n < want; i++) { const ch = m[0][i]; if (ch !== ' ') { compact += ch; n++; } end = i + 1; }
     return n === want && ibanValid(compact) && !/[A-Za-z0-9]/.test(t[m.index + end] ?? ' ') ? { start: m.index, end: m.index + end } : null;
   }),
-  'pii-aba-routing': (t) => spans(/(?<![\d-])\d{9}(?![\d-])/g, t, (m) => (abaValid(m[0]) ? whole(m) : null)),
-  'pii-health-id': (t) => spans(/(?<![\d-])\d{3}( ?)\d{3}\1\d{4}(?![\d-])/g, t, (m) => (healthIdValid(digits(m[0])) ? whole(m) : null)),
-  'pii-ca-sin': (t) => spans(/(?<![\d-])\d{3}([ -])\d{3}\1\d{3}(?![\d-])/g, t, (m) => { const d = digits(m[0]); return luhnValid(d) && d[0] !== '0' && d[0] !== '8' ? whole(m) : null; }),
+  'pii-aba-routing': (t) => spans(/(?<![A-Za-z0-9])\d{9}(?![A-Za-z0-9])/g, t, (m) => (abaValid(m[0]) ? whole(m) : null)),
+  'pii-health-id': (t) => spans(/(?<![A-Za-z0-9])\d{3}( ?)\d{3}\1\d{4}(?![A-Za-z0-9])/g, t, (m) => (healthIdValid(digits(m[0])) ? whole(m) : null)),
+  'pii-ca-sin': (t) => spans(/(?<![A-Za-z0-9])\d{3}([ ._-])\d{3}\1\d{3}(?![A-Za-z0-9])/g, t, (m) => { const d = digits(m[0]); return luhnValid(d) && d[0] !== '0' && d[0] !== '8' ? whole(m) : null; }),
   'pii-es-dni': (t) => spans(/(?<![A-Za-z0-9])(\d{8})([A-HJ-NP-TV-Z])(?![A-Za-z0-9])/g, t, (m) => (dniLetter(m[1]) === m[2] ? whole(m) : null)),
   'pii-uk-nino': (t) => spans(/(?<![A-Za-z0-9])([A-CEGHJ-PR-TW-Z][A-CEGHJ-NPR-TW-Z]) ?\d{2} ?\d{2} ?\d{2} ?[A-D](?![A-Za-z0-9])/g, t, (m) => (['BG', 'GB', 'NK', 'KN', 'TN', 'NT', 'ZZ'].includes(m[1]) ? null : whole(m))),
   'pii-dob': (t) => spans(/\b(?:dob|d\.o\.b\.?|date of birth|born(?: on)?)\s*[:\-]?\s*(\d{4}-\d{2}-\d{2}|\d{1,2}[/.]\d{1,2}[/.]\d{4})/gi, t, (m) => {
@@ -64,7 +66,7 @@ const FINDERS = {
     const start = m.index + m[0].length - v.length; return { start, end: start + v.length };
   }),
   'pii-email': (t) => spans(/(?<![A-Za-z0-9._%+-])[A-Za-z0-9._%+-]{1,64}@[A-Za-z0-9-]{1,63}(?:\.[A-Za-z0-9-]{1,63}){1,4}(?![A-Za-z0-9-])/g, t, (m) => (/\.[A-Za-z]{2,}$/.test(m[0]) ? whole(m) : null)),
-  'pii-phone': (t) => spans(/(?<![\d+-])(?:\+\d{1,3}[ -]?\(?\d{1,4}\)?(?:[ -]?\d{2,4}){2,3}|\(\d{3}\) ?\d{3}-\d{4}|\d{3}-\d{3}-\d{4})(?![\d-])/g, t, (m) => { const n = digits(m[0]).length; return n >= 8 && n <= 15 ? whole(m) : null; }),
+  'pii-phone': (t) => spans(/(?<![\d+])(?:\+\d{1,3}[ -]?\(?\d{1,4}\)?(?:[ -]?\d{2,4}){2,3}|\([2-9]\d\d\) ?[2-9]\d\d-\d{4}|[2-9]\d\d-[2-9]\d\d-\d{4})(?!-?\d)/g, t, (m) => { const n = digits(m[0]).length; return n >= 8 && n <= 15 ? whole(m) : null; }),
 };
 
 // ---- samples: a valid value and a near miss, computed from the checksum at run time -----------------------------------------------------------
@@ -102,9 +104,10 @@ export const piiKind = (id) => PII_KINDS.find((k) => k.id === id) || null;
 // kinds: null = every kind; otherwise an array of kind ids (a custom rule id is ignored here: it is filtered in guard.js).
 export function detectPii(text, kinds = null) {
   const out = [];
+  const n = normalise(String(text)); // finders see through zero-width characters, whitespace runs and fullwidth digits
   for (const k of PII_KINDS) {
     if (kinds && !kinds.includes(k.id)) continue;
-    for (const s of FINDERS[k.id](text)) out.push({ kind: k.id, start: s.start, end: s.end });
+    for (const s of FINDERS[k.id](n.norm)) { const o = mapSpan(n, s.start, s.end); out.push({ kind: k.id, start: o.start, end: o.end }); }
   }
   return out;
 }

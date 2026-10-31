@@ -3,6 +3,7 @@
 // that set or any third-party rule list. Prefixes and shapes below are public conventions, written here from scratch.
 // Test credentials are built at run time (never a literal in the repository), and every one is checked with a near miss that must not match.
 import { createHash } from 'node:crypto';
+import { mapSpan, normalise } from './normalize.js';
 
 export function shannon(s) {
   if (!s) return 0;
@@ -29,7 +30,7 @@ export const SECRET_DETECTORS = [
     sample: () => j('gh', 'p_', filler(36, 'gh')), nearMiss: () => j('gh', 'p_', filler(20, 'gh')) },
   { id: 'lab-github-fine-grained', description: 'GitHub fine-grained token (github_pat_ prefix)', keywords: ['github_pat_'], pattern: '\\bgithub_pat_[A-Za-z0-9_]{22,82}\\b', flags: '', entropy: 0, allowlist: [], valueGroup: 0, score: 0.9,
     sample: () => j('github', '_pat_', filler(40, 'ghf')), nearMiss: () => j('github', '_pat_', filler(10, 'ghf')) },
-  { id: 'lab-slack-token', description: 'Slack token (xox prefix)', keywords: ['xox'], pattern: '\\bxox[abprs]-[A-Za-z0-9-]{10,48}\\b', flags: '', entropy: 0, allowlist: [], valueGroup: 0, score: 0.9,
+  { id: 'lab-slack-token', description: 'Slack token (xox prefix)', keywords: ['xox'], pattern: '\\bxox[abeprs]-[A-Za-z0-9-]{10,48}\\b', flags: '', entropy: 0, allowlist: [], valueGroup: 0, score: 0.9,
     sample: () => j('xo', 'xb-', filler(24, 'slack')), nearMiss: () => j('xo', 'xb-', filler(5, 'slack')) },
   { id: 'lab-payment-secret-key', description: 'Payment-provider live secret key (sk_live_/rk_live_ prefix)', keywords: ['_live_'], pattern: '\\b[sr]k_live_[A-Za-z0-9]{24,99}\\b', flags: '', entropy: 0, allowlist: [], valueGroup: 0, score: 0.9,
     sample: () => j('sk', '_live_', filler(28, 'pay')), nearMiss: () => j('sk', '_test_', filler(28, 'pay')) },
@@ -51,15 +52,16 @@ export const SECRET_DETECTORS = [
     sample: () => j('Bear', 'er ', filler(32, 'bt')), nearMiss: () => j('Bear', 'er ', 'a'.repeat(32)) },
   { id: 'lab-generic-assignment', description: 'A secret-looking name assigned a high-entropy value (api_key=, secret:, token=, password=)', keywords: ['key', 'secret', 'token', 'passw', 'pwd'], pattern: '\\b(?:api[_-]?key|secret|token|passw(?:or)?d|pwd)\\s*[:=]\\s*["\']?([A-Za-z0-9/+=_-]{12,80})["\']?', flags: 'i', entropy: 3.2, allowlist: ['^(?:your|example|changeme|placeholder|xxx|\\$\\{)'], valueGroup: 1, score: 0.75,
     sample: () => j('api_', 'key = "', filler(30, 'ga'), '"'), nearMiss: () => j('api_', 'key = "', 'your_api_key_goes_here', '"') },
-  { id: 'lab-openai-style-key', description: 'sk- style API key (the labelled sk-MOCK- value is the only one this lab ever shows)', keywords: ['sk-'], pattern: '\\bsk-[A-Za-z0-9_-]{20,}', flags: '', entropy: 3, allowlist: [], valueGroup: 0, score: 0.9,
+  { id: 'lab-openai-style-key', description: 'sk- style API key (the labelled sk-MOCK- value is the only one this lab ever shows)', keywords: ['sk-'], pattern: '\\bsk-(?=[A-Za-z0-9_-]*\\d)[A-Za-z0-9_-]{20,}', flags: '', entropy: 3, allowlist: [], valueGroup: 0, score: 0.9,
     sample: () => j('sk', '-', filler(40, 'oa')), nearMiss: () => j('sk', '-', 'abc') },
 ];
 export const SECRET_COUNT_IN_DECK = 364; // the deck's figure, shown next to the lab set and never implied to be it
 
 const COMPILED = SECRET_DETECTORS.map((d) => ({ d, re: new RegExp(d.pattern, `${d.flags}dg`), allow: d.allowlist.map((a) => new RegExp(a, 'i')) }));
 
-// Built-in detectors run here, in-process: their patterns are fixed and linear. (Pasted rules never do: they run in the worker.)
-export function detectSecrets(text) {
+// Built-in detectors run here, in-process: their patterns are fixed and linear. (Pasted rules never do: they run in a child process.)
+export function detectSecrets(raw) {
+  const n = normalise(String(raw)); const text = n.norm; // zero-width characters, whitespace tricks and fullwidth forms do not hide a secret
   const low = text.toLowerCase();
   const out = [];
   for (const { d, re, allow } of COMPILED) {
@@ -69,7 +71,8 @@ export function detectSecrets(text) {
       const value = text.slice(s, e);
       if (d.entropy && shannon(value) < d.entropy) continue;
       if (allow.some((a) => a.test(value))) continue;
-      out.push({ rule: d.id, start: s, end: e, score: d.score });
+      const o = mapSpan(n, s, e);
+      out.push({ rule: d.id, start: o.start, end: o.end, score: d.score });
     }
   }
   return out;

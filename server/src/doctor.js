@@ -60,13 +60,13 @@ export async function runChecks({ env = process.env, cast = DEFAULT_CAST, table 
   const sc = runSelfCheck();
   add('kinds-and-detectors', selfCheckOk(sc) ? 'pass' : 'fail', selfCheckOk(sc) ? `${Object.keys(sc.kinds).length} personal-data kinds and ${Object.keys(sc.secrets).length} secret detectors: every valid sample fires and every near miss stays quiet` : 'a kind or detector misses its valid sample or fires on its near miss');
 
-  const hostile = ['(a+)+$', '(a|aa)+$', '^(\\w+\\s?)*$', '(a)\\1', '(?=a)b', 'a{1,100000}'];
+  const hostile = ['(a+)+$', '(a|aa)+$', '^(\\w+\\s?)*$', '(a)\\1', '(?=a)b', 'a{1,100000}', `${'a?'.repeat(40)}${'a'.repeat(40)}`];
   const let_through = hostile.filter((h) => checkRegex(h) === null);
   const paste = await importToml(RULE_SAMPLES.find((s) => s.id === 'one-bad').toml, { runner });
   add('regex-guard', !let_through.length && paste.Added.length === 0 && paste.Errors.length === 2 ? 'pass' : 'fail', !let_through.length && paste.Added.length === 0 ? `${hostile.length} hostile patterns refused up front; a paste with one bad rule adds nothing and lists each refused rule` : 'the regex guard let a hostile pattern through or half-applied a paste');
 
-  try { const g = await runner.selftest(8000); add('worker-netguard', g.ok && g.attempts === 0 ? 'pass' : 'fail', g.ok ? 'the regex worker has its own netguard: it blocked all 6 routes out' : g.detail); }
-  catch { add('worker-netguard', 'fail', 'the regex worker did not answer'); }
+  try { const g = await runner.selftest(8000); add('child-netguard', g.ok && g.attempts === 0 ? 'pass' : 'fail', g.ok ? 'the regex child process has its own netguard: it blocked all 6 routes out' : g.detail); }
+  catch { add('child-netguard', 'fail', 'the regex child process did not answer'); }
 
   const pol = validatePolicy(defaultPolicy());
   add('policy', pol.ok ? 'pass' : 'fail', pol.ok ? 'the default policy validates' : JSON.stringify(pol.errors).slice(0, 120));

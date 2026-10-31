@@ -2,11 +2,14 @@
 // One bad rule refuses the WHOLE paste: nothing is added and Errors lists every refused rule, one per line (swagger description, 2026-10-31).
 // The TOML key names are a LAB READING of the gitleaks format: id, description, regex, keywords, entropy, secretGroup, [rules.allowlist].regexes,
 // plus the lab's own category, severity, score, owasp and appliesTo so a pasted rule can carry the other modelAIGuardCustomRule fields.
-// Every regular expression is checked statically (safeRegex.js) and then compiled in the worker; none ever runs on the main thread.
+// Every regular expression is checked statically (safeRegex.js) and then compiled in a child process; none ever runs in the server process.
 import { parseToml, TOML_LIMITS } from './toml.js';
 import { checkRegex, splitInlineFlags } from './safeRegex.js';
 import { CATEGORY_IDS, SURFACES, isCategory } from './categories.js';
 import { cleanText } from './safety.js';
+import { maskText } from './mask.js';
+
+const safeName = (n) => (/^[A-Za-z_][A-Za-z0-9_.-]{0,29}$/.test(n) && maskText(n) === n ? n : '(name hidden)');
 import { RegexTimeout, sharedRunner } from './regexRunner.js';
 
 export const RULE_LIMITS = { rulesPerWorkspace: 50, keywords: 20, keywordLength: 40, allowlist: 10, description: 200, id: 64 };
@@ -21,8 +24,9 @@ const isStrArray = (v, max) => Array.isArray(v) && v.length <= max && v.every((x
 // Field checks that need no regular expression. Returns { problems, rule } where rule is the swagger-shaped rule when problems is empty.
 function buildRule(raw, n) {
   const f = raw.fields; const problems = [...raw.errors];
-  for (const k of Object.keys(f)) if (!KNOWN.includes(k)) problems.push(`unknown key ${cleanText(k, 30)}`);
+  for (const k of Object.keys(f)) if (!KNOWN.includes(k)) problems.push(`unknown key ${safeName(k)}`);
   if (typeof f.id !== 'string' || !ID.test(f.id.toLowerCase())) problems.push('id is required: lowercase letters, digits and dashes, up to 64');
+  else if (maskText(`cst-${f.id.toLowerCase()}`) !== `cst-${f.id.toLowerCase()}`) problems.push('id looks like personal data or a secret: choose a plain name');
   if (typeof f.regex !== 'string') problems.push('regex is required (a string)');
   if (f.description !== undefined && (typeof f.description !== 'string' || f.description.length > RULE_LIMITS.description)) problems.push(`description must be text up to ${RULE_LIMITS.description} characters`);
   if (f.keywords !== undefined && (!isStrArray(f.keywords, RULE_LIMITS.keywords) || f.keywords.some((k) => !k || k.length > RULE_LIMITS.keywordLength))) problems.push(`keywords must be up to ${RULE_LIMITS.keywords} short strings`);
@@ -36,14 +40,14 @@ function buildRule(raw, n) {
   if (f.tags !== undefined && !isStrArray(f.tags, 20)) problems.push('tags must be a list of strings');
   const a = raw.allowlist;
   if (a) {
-    for (const k of Object.keys(a)) if (k !== 'regexes' && k !== 'description') problems.push(`allowlist key ${cleanText(k, 30)} is not supported (only regexes)`);
+    for (const k of Object.keys(a)) if (k !== 'regexes' && k !== 'description') problems.push(`allowlist key ${safeName(k)} is not supported (only regexes)`);
     if (a.regexes !== undefined && !isStrArray(a.regexes, RULE_LIMITS.allowlist)) problems.push(`allowlist regexes must be up to ${RULE_LIMITS.allowlist} strings`);
   }
-  const label = typeof f.id === 'string' ? cleanText(f.id, 40) : '(no id)';
+  const label = typeof f.id === 'string' && ID.test(f.id.toLowerCase()) && maskText(f.id) === f.id ? f.id : '(id hidden)';
   return { n, label, problems, f, allow: a?.regexes || [] };
 }
 
-export async function importToml(toml, { existingIds = [], existingCount = 0, runner = sharedRunner } = {}) {
+export async function importToml(toml, { existingIds = [], existingCount = 0, runner = sharedRunner, owner } = {}) {
   const out = { Toml: typeof toml === 'string' ? toml : '', Added: [], Errors: [] };
   const parsed = parseToml(toml);
   for (const e of parsed.errors) out.Errors.push(e);
@@ -51,7 +55,7 @@ export async function importToml(toml, { existingIds = [], existingCount = 0, ru
   const built = parsed.rules.map((r, i) => buildRule(r, i + 1));
   if (existingCount + built.length > RULE_LIMITS.rulesPerWorkspace) out.Errors.push(`a workspace holds at most ${RULE_LIMITS.rulesPerWorkspace} rules`);
   const seen = new Set(existingIds);
-  // The static check first; only patterns that pass it are sent to the worker to compile.
+  // The static check first; only patterns that pass it are sent to the child process to compile.
   const toCompile = [];
   for (const b of built) {
     const id = typeof b.f.id === 'string' ? tenantRuleId(b.f.id.toLowerCase()) : null;
@@ -66,13 +70,13 @@ export async function importToml(toml, { existingIds = [], existingCount = 0, ru
   if (toCompile.length) {
     try {
       const patterns = toCompile.map((t) => { const s = splitInlineFlags(t.raw); return { source: s.source, flags: s.flags }; });
-      const res = await runner.validate(patterns);
+      const res = await runner.validate(patterns, undefined, owner);
       res.forEach((r, k) => {
         const t = toCompile[k];
         if (!r.ok) t.b.problems.push(`${t.kind === 'regex' ? 'regex' : 'allowlist regex'} ${r.error}`);
         else if (t.kind === 'regex') t.b.groups = r.groups;
       });
-    } catch (e) { for (const t of toCompile) t.b.problems.push(e instanceof RegexTimeout ? 'regex check ran out of time' : 'regex check failed'); }
+    } catch (e) { for (const t of toCompile) t.b.problems.push(e instanceof RegexTimeout ? 'regex check ran out of time (the pattern was stopped)' : e?.code === 'busy' ? 'too many checks are queued for this workspace: try again' : 'regex check failed'); }
   }
   for (const b of built) {
     if (b.f.secretGroup !== undefined && b.groups !== undefined && b.f.secretGroup > b.groups) b.problems.push('secretGroup is higher than the number of groups in the regex');

@@ -13,10 +13,11 @@ test('the entry installs the netguard first, before it can open any socket', () 
   assert.ok(src.indexOf('import { installNetguard }') < guard);
 });
 
-test('the regex worker installs its own netguard before it handles any job', () => {
-  const src = fs.readFileSync(new URL('../src/regexWorker.js', import.meta.url), 'utf8');
+test('the regex child process installs its own netguard before it handles any job', () => {
+  const src = fs.readFileSync(new URL('../src/regexChild.js', import.meta.url), 'utf8');
   assert.match(src, /import \{ installNetguard, netguardSelfTest \} from '\.\/netguard\.js'/);
-  assert.ok(src.indexOf('installNetguard()') > 0 && src.indexOf('installNetguard()') < src.indexOf('parentPort.on('));
+  assert.ok(src.indexOf('installNetguard()') > 0 && src.indexOf('installNetguard()') < src.indexOf("process.on('message'"));
+  assert.ok(!/worker_threads|new Worker\(/.test(fs.readFileSync(new URL('../src/regexRunner.js', import.meta.url), 'utf8')), 'no thread: a thread stuck in the regex engine cannot be stopped');
 });
 
 test('no source file builds a regular expression from visitor input, evals, or writes a file', () => {
@@ -25,6 +26,6 @@ test('no source file builds a regular expression from visitor input, evals, or w
     const code = fs.readFileSync(new URL(f, dir), 'utf8').split('\n').filter((l) => !/^\s*\/\//.test(l)).join('\n');
     assert.ok(!/\beval\(|new Function\(|\bvm\./.test(code), `${f}: no eval, Function or vm`);
     assert.ok(!/writeFile|appendFile|createWriteStream|mkdirSync|rmSync|unlinkSync/.test(code), `${f}: the server writes no file`);
-    if (!['regexWorker.js', 'toml.js'].includes(f)) assert.ok(!/new RegExp\(/.test(code.replace(/new RegExp\(d\.pattern|new RegExp\(a, 'i'\)|new RegExp\(re, 'g'\)/g, '')), `${f}: no regular expression is built at run time here`);
+    if (!['regexChild.js', 'toml.js'].includes(f)) assert.ok(!/new RegExp\(/.test(code.replace(/new RegExp\(d\.pattern|new RegExp\(a, 'i'\)|new RegExp\(re, 'g'\)/g, '')), `${f}: no regular expression is built at run time here`);
   }
 });
