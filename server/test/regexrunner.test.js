@@ -13,6 +13,8 @@ test('a hostile pattern that gets past the static check is TERMINATED within the
     const took = Date.now() - t0;
     assert.ok(took >= 250 && took < 3000, `took ${took} ms`);
     assert.equal(r.stats().killed, 1);
+    for (let i = 0; i < 100 && r.stats().exited < 1; i++) await new Promise((res) => setTimeout(res, 50));
+    assert.equal(r.stats().exited, 1, 'the runaway worker really exited (it was terminated, not just abandoned)');
     const ok = await r.scan({ jobs: [job('y', 'ab+')], text: 'xxabbbyy' }, 20000);
     assert.deepEqual(ok.matches, [{ id: 'y', start: 2, end: 6 }]);
     assert.equal(r.stats().spawned, 2, 'a fresh worker took over');

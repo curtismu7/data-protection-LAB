@@ -11,14 +11,14 @@ const FILE = path.join(path.dirname(fileURLToPath(import.meta.url)), 'regexWorke
 export class RegexTimeout extends Error { constructor() { super('stopped after the time limit'); this.code = 'timeout'; } }
 
 export function createRegexRunner({ timeoutMs = RUNNER_LIMITS.timeoutMs } = {}) {
-  let worker = null; let ready = null; let seq = 0; let queue = Promise.resolve(); let spawned = 0; let killed = 0;
+  let worker = null; let ready = null; let seq = 0; let queue = Promise.resolve(); let spawned = 0; let killed = 0; let exited = 0;
   const start = () => {
     spawned++;
     // `env: {}` gives the worker an empty environment: nothing from the shared settings file can reach it.
     const w = new Worker(FILE, { env: {}, resourceLimits: { maxOldGenerationSizeMb: 96 } });
     const online = new Promise((resolve, reject) => { w.once('online', resolve); w.once('error', reject); });
     worker = w; ready = online.then(() => w);
-    w.once('exit', () => { if (worker === w) { worker = null; ready = null; } });
+    w.once('exit', () => { exited++; if (worker === w) { worker = null; ready = null; } });
     return ready;
   };
   const exec = async (msg, limit) => {
@@ -39,7 +39,7 @@ export function createRegexRunner({ timeoutMs = RUNNER_LIMITS.timeoutMs } = {}) 
     validate: (patterns, limit) => run({ type: 'validate', patterns }, limit),
     scan: ({ jobs, text, maxMatches = RUNNER_LIMITS.maxMatchesPerRule }, limit) => run({ type: 'scan', jobs, text: String(text).slice(0, RUNNER_LIMITS.textChars), maxMatches }, limit),
     selftest: (limit) => run({ type: 'selftest' }, limit),
-    stats: () => ({ spawned, killed, alive: !!worker }),
+    stats: () => ({ spawned, killed, exited, alive: !!worker }),
     async close() { const w = worker; worker = null; ready = null; if (w) await w.terminate(); },
   };
 }
