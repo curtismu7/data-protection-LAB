@@ -28,7 +28,7 @@ export function maskDeep(value) {
     if (typeof src === 'string') { dst[key] = opaque ? src : maskText(src); continue; }
     if (src === null || typeof src !== 'object') { dst[key] = src; continue; }
     const copy = clone(src); dst[key] = copy;
-    for (const k of Object.keys(src)) work.push([src[k], copy, k, OPAQUE.has(k)]);
+    for (const k of Object.keys(src).reverse()) work.push([src[k], copy, k, OPAQUE.has(k)]);
   }
   return root.v;
 }

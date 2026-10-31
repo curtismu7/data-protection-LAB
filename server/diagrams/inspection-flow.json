@@ -31,41 +31,41 @@
       "label": "Agent or client ({{castAgent}} in {{castApp}})",
       "group": "client",
       "x": 0,
-      "y": 170
+      "y": 200
     },
     {
       "id": "gw",
       "label": "P1 Privilege Agent App",
       "group": "gateway",
-      "x": 320,
-      "y": 170
+      "x": 420,
+      "y": 200
     },
     {
       "id": "guard",
       "label": "AIGuard: categories, personal data, secrets",
       "group": "policy",
-      "x": 640,
+      "x": 740,
       "y": 20
     },
     {
       "id": "rules",
       "label": "Your pasted rules (worker, time limit)",
       "group": "policy",
-      "x": 640,
-      "y": 320
+      "x": 1100,
+      "y": 20
     },
     {
       "id": "up",
       "label": "MCP server, LLM or peer agent",
       "group": "upstream",
-      "x": 960,
-      "y": 170
+      "x": 780,
+      "y": 400
     },
     {
       "id": "ins",
       "label": "Agent Insights: Guard, Alerts, Prompts",
       "group": "audit",
-      "x": 320,
+      "x": 420,
       "y": 440
     }
   ],

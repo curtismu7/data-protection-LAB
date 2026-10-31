@@ -33,28 +33,28 @@
       "id": "gw",
       "label": "P1 Privilege Agent App seals each record",
       "group": "gateway",
-      "x": 320,
+      "x": 420,
       "y": 180
     },
     {
       "id": "store",
       "label": "Record store: ciphertext and clear metadata",
       "group": "store",
-      "x": 640,
+      "x": 840,
       "y": 180
     },
     {
       "id": "console",
       "label": "Agent Insights page in your browser",
       "group": "you",
-      "x": 640,
+      "x": 840,
       "y": 420
     },
     {
       "id": "key",
       "label": "Your private key (stays in your browser)",
       "group": "you",
-      "x": 320,
+      "x": 420,
       "y": 420
     }
   ],

@@ -37,7 +37,7 @@ async function maskDeepFull(value, ctx) {
     const [src, dst, key] = work.pop();
     if (typeof src === 'string') { leaves.push([dst, key, src]); continue; }
     if (src === null || typeof src !== 'object') { dst[key] = src; continue; }
-    const copy = clone(src); dst[key] = copy; for (const k of Object.keys(src)) work.push([src[k], copy, k]);
+    const copy = clone(src); dst[key] = copy; for (const k of Object.keys(src).reverse()) work.push([src[k], copy, k]);
   }
   for (const [dst, key, text] of leaves) dst[key] = await maskFull(text, ctx);
   return root.v;
