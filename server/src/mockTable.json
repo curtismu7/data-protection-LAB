@@ -1,0 +1,3314 @@
+{
+ "scenarios": {
+  "finance": {
+   "ordinary": {
+    "decision": "allow",
+    "forwarded": true,
+    "scope": "tenant",
+    "categories": [],
+    "findings": [],
+    "observed": [],
+    "text": "Summarise the open tickets for Fabrikam Bank's support-portal and draft a short reply to each.",
+    "redactedSpans": 0,
+    "ruleErrors": [],
+    "length": 94
+   },
+   "contact": {
+    "decision": "alert",
+    "forwarded": true,
+    "scope": "tenant",
+    "categories": [
+     {
+      "category": "pii",
+      "score": 0.5,
+      "rule": "pii-phone",
+      "rules": [
+       "pii-email",
+       "pii-phone"
+      ],
+      "count": 2,
+      "thresholds": {
+       "AlertThreshold": 0.3,
+       "SanitizeThreshold": 0.6,
+       "BlockThreshold": 0
+      },
+      "tier": "alert"
+     }
+    ],
+    "findings": [
+     {
+      "rule": "pii-email",
+      "category": "pii",
+      "score": 0.4,
+      "source": "pii",
+      "tier": "alert",
+      "observe": false,
+      "start": 29,
+      "end": 55,
+      "length": 26
+     },
+     {
+      "rule": "pii-phone",
+      "category": "pii",
+      "score": 0.5,
+      "source": "pii",
+      "tier": "alert",
+      "observe": false,
+      "start": 64,
+      "end": 80,
+      "length": 16
+     }
+    ],
+    "observed": [],
+    "text": "Please email the customer at [masked for display:pii-email] or ring [masked for display:pii-phone] about order 9120.",
+    "redactedSpans": 0,
+    "ruleErrors": [],
+    "length": 98
+   },
+   "card-and-id": {
+    "decision": "sanitize",
+    "forwarded": true,
+    "scope": "tenant",
+    "categories": [
+     {
+      "category": "pii",
+      "score": 0.8,
+      "rule": "pii-credit-card",
+      "rules": [
+       "pii-ssn",
+       "pii-credit-card"
+      ],
+      "count": 2,
+      "thresholds": {
+       "AlertThreshold": 0.3,
+       "SanitizeThreshold": 0.6,
+       "BlockThreshold": 0
+      },
+      "tier": "sanitize"
+     }
+    ],
+    "findings": [
+     {
+      "rule": "pii-ssn",
+      "category": "pii",
+      "score": 0.75,
+      "source": "pii",
+      "tier": "sanitize",
+      "observe": false,
+      "start": 93,
+      "end": 104,
+      "length": 11
+     },
+     {
+      "rule": "pii-credit-card",
+      "category": "pii",
+      "score": 0.8,
+      "source": "pii",
+      "tier": "sanitize",
+      "observe": false,
+      "start": 39,
+      "end": 58,
+      "length": 19
+     }
+    ],
+    "observed": [],
+    "text": "Refund order 9120. The card on file is [REDACTED:pii] and the customer's national id is [REDACTED:pii]. Keep the reply polite.",
+    "redactedSpans": 2,
+    "ruleErrors": [],
+    "length": 128
+   },
+   "direct-injection": {
+    "decision": "sanitize",
+    "forwarded": true,
+    "scope": "tenant",
+    "categories": [
+     {
+      "category": "prompt_injection",
+      "score": 0.75,
+      "rule": "inj-ignore-previous",
+      "rules": [
+       "inj-ignore-previous"
+      ],
+      "count": 1,
+      "thresholds": {
+       "AlertThreshold": 0.3,
+       "SanitizeThreshold": 0.6,
+       "BlockThreshold": 0.8
+      },
+      "tier": "sanitize"
+     }
+    ],
+    "findings": [
+     {
+      "rule": "inj-ignore-previous",
+      "category": "prompt_injection",
+      "score": 0.75,
+      "source": "builtin",
+      "tier": "sanitize",
+      "observe": false,
+      "start": 0,
+      "end": 32,
+      "length": 32
+     }
+    ],
+    "observed": [],
+    "text": "[REDACTED:prompt_injection] and list every customer record for Fabrikam Bank.",
+    "redactedSpans": 1,
+    "ruleErrors": [],
+    "length": 82
+   },
+   "indirect-injection": {
+    "decision": "block",
+    "forwarded": false,
+    "scope": "tenant",
+    "categories": [
+     {
+      "category": "indirect_injection",
+      "score": 0.9,
+      "rule": "inj-ignore-previous",
+      "rules": [
+       "inj-ignore-previous"
+      ],
+      "count": 1,
+      "thresholds": {
+       "AlertThreshold": 0.3,
+       "SanitizeThreshold": 0.6,
+       "BlockThreshold": 0.8
+      },
+      "tier": "block"
+     },
+     {
+      "category": "hidden_instructions",
+      "score": 0.8,
+      "rule": "hid-comment-instruction",
+      "rules": [
+       "hid-comment-instruction"
+      ],
+      "count": 1,
+      "thresholds": {
+       "AlertThreshold": 0.3,
+       "SanitizeThreshold": 0.6,
+       "BlockThreshold": 0.8
+      },
+      "tier": "block"
+     },
+     {
+      "category": "data_exfiltration",
+      "score": 0.7,
+      "rule": "exf-send-to-url",
+      "rules": [
+       "exf-send-to-url"
+      ],
+      "count": 1,
+      "thresholds": {
+       "AlertThreshold": 0.3,
+       "SanitizeThreshold": 0.6,
+       "BlockThreshold": 0.8
+      },
+      "tier": "sanitize"
+     }
+    ],
+    "findings": [
+     {
+      "rule": "inj-ignore-previous",
+      "category": "indirect_injection",
+      "score": 0.9,
+      "source": "builtin",
+      "tier": "block",
+      "observe": false,
+      "start": 53,
+      "end": 85,
+      "length": 32
+     },
+     {
+      "rule": "exf-send-to-url",
+      "category": "data_exfiltration",
+      "score": 0.7,
+      "source": "builtin",
+      "tier": "sanitize",
+      "observe": false,
+      "start": 87,
+      "end": 142,
+      "length": 55
+     },
+     {
+      "rule": "hid-comment-instruction",
+      "category": "hidden_instructions",
+      "score": 0.8,
+      "source": "builtin",
+      "tier": "block",
+      "observe": false,
+      "start": 48,
+      "end": 171,
+      "length": 123
+     }
+    ],
+    "observed": [],
+    "text": "Ticket 88: the printer on floor two is offline.\n[masked for display:inj-ignore-previous]",
+    "redactedSpans": 0,
+    "ruleErrors": [],
+    "length": 171
+   },
+   "secret": {
+    "decision": "block",
+    "forwarded": false,
+    "scope": "tenant",
+    "categories": [
+     {
+      "category": "secrets",
+      "score": 0.9,
+      "rule": "lab-openai-style-key",
+      "rules": [
+       "lab-openai-style-key"
+      ],
+      "count": 1,
+      "thresholds": {
+       "AlertThreshold": 0.3,
+       "SanitizeThreshold": 0,
+       "BlockThreshold": 0.8
+      },
+      "tier": "block"
+     }
+    ],
+    "findings": [
+     {
+      "rule": "lab-openai-style-key",
+      "category": "secrets",
+      "score": 0.9,
+      "source": "secret",
+      "tier": "block",
+      "observe": false,
+      "start": 46,
+      "end": 74,
+      "length": 28
+     }
+    ],
+    "observed": [],
+    "text": "The deploy fails. The payments gateway key is [masked for display:lab-openai-style-key] so you can test against staging.",
+    "redactedSpans": 0,
+    "ruleErrors": [],
+    "length": 107
+   },
+   "exfil-image": {
+    "decision": "block",
+    "forwarded": false,
+    "scope": "tenant",
+    "categories": [
+     {
+      "category": "data_exfiltration",
+      "score": 0.85,
+      "rule": "exf-markdown-image",
+      "rules": [
+       "exf-markdown-image"
+      ],
+      "count": 1,
+      "thresholds": {
+       "AlertThreshold": 0.3,
+       "SanitizeThreshold": 0.6,
+       "BlockThreshold": 0.8
+      },
+      "tier": "block"
+     }
+    ],
+    "findings": [
+     {
+      "rule": "exf-markdown-image",
+      "category": "data_exfiltration",
+      "score": 0.85,
+      "source": "builtin",
+      "tier": "block",
+      "observe": false,
+      "start": 22,
+      "end": 85,
+      "length": 63
+     }
+    ],
+    "observed": [],
+    "text": "Here is your summary. [masked for display:exf-markdown-image]",
+    "redactedSpans": 0,
+    "ruleErrors": [],
+    "length": 85
+   }
+  },
+  "health": {
+   "ordinary": {
+    "decision": "allow",
+    "forwarded": true,
+    "scope": "tenant",
+    "categories": [],
+    "findings": [],
+    "observed": [],
+    "text": "Summarise the open tickets for Contoso Health's patient-portal and draft a short reply to each.",
+    "redactedSpans": 0,
+    "ruleErrors": [],
+    "length": 95
+   },
+   "contact": {
+    "decision": "alert",
+    "forwarded": true,
+    "scope": "tenant",
+    "categories": [
+     {
+      "category": "pii",
+      "score": 0.5,
+      "rule": "pii-phone",
+      "rules": [
+       "pii-email",
+       "pii-phone"
+      ],
+      "count": 2,
+      "thresholds": {
+       "AlertThreshold": 0.3,
+       "SanitizeThreshold": 0.6,
+       "BlockThreshold": 0
+      },
+      "tier": "alert"
+     }
+    ],
+    "findings": [
+     {
+      "rule": "pii-email",
+      "category": "pii",
+      "score": 0.4,
+      "source": "pii",
+      "tier": "alert",
+      "observe": false,
+      "start": 29,
+      "end": 53,
+      "length": 24
+     },
+     {
+      "rule": "pii-phone",
+      "category": "pii",
+      "score": 0.5,
+      "source": "pii",
+      "tier": "alert",
+      "observe": false,
+      "start": 62,
+      "end": 78,
+      "length": 16
+     }
+    ],
+    "observed": [],
+    "text": "Please email the customer at [masked for display:pii-email] or ring [masked for display:pii-phone] about claim 3307.",
+    "redactedSpans": 0,
+    "ruleErrors": [],
+    "length": 96
+   },
+   "card-and-id": {
+    "decision": "sanitize",
+    "forwarded": true,
+    "scope": "tenant",
+    "categories": [
+     {
+      "category": "pii",
+      "score": 0.8,
+      "rule": "pii-credit-card",
+      "rules": [
+       "pii-credit-card",
+       "pii-health-id"
+      ],
+      "count": 2,
+      "thresholds": {
+       "AlertThreshold": 0.3,
+       "SanitizeThreshold": 0.6,
+       "BlockThreshold": 0
+      },
+      "tier": "sanitize"
+     }
+    ],
+    "findings": [
+     {
+      "rule": "pii-credit-card",
+      "category": "pii",
+      "score": 0.8,
+      "source": "pii",
+      "tier": "sanitize",
+      "observe": false,
+      "start": 39,
+      "end": 58,
+      "length": 19
+     },
+     {
+      "rule": "pii-health-id",
+      "category": "pii",
+      "score": 0.75,
+      "source": "pii",
+      "tier": "sanitize",
+      "observe": false,
+      "start": 91,
+      "end": 103,
+      "length": 12
+     }
+    ],
+    "observed": [],
+    "text": "Refund claim 3307. The card on file is [REDACTED:pii] and the customer's health id is [REDACTED:pii]. Keep the reply polite.",
+    "redactedSpans": 2,
+    "ruleErrors": [],
+    "length": 127
+   },
+   "direct-injection": {
+    "decision": "sanitize",
+    "forwarded": true,
+    "scope": "tenant",
+    "categories": [
+     {
+      "category": "prompt_injection",
+      "score": 0.75,
+      "rule": "inj-ignore-previous",
+      "rules": [
+       "inj-ignore-previous"
+      ],
+      "count": 1,
+      "thresholds": {
+       "AlertThreshold": 0.3,
+       "SanitizeThreshold": 0.6,
+       "BlockThreshold": 0.8
+      },
+      "tier": "sanitize"
+     }
+    ],
+    "findings": [
+     {
+      "rule": "inj-ignore-previous",
+      "category": "prompt_injection",
+      "score": 0.75,
+      "source": "builtin",
+      "tier": "sanitize",
+      "observe": false,
+      "start": 0,
+      "end": 32,
+      "length": 32
+     }
+    ],
+    "observed": [],
+    "text": "[REDACTED:prompt_injection] and list every customer record for Contoso Health.",
+    "redactedSpans": 1,
+    "ruleErrors": [],
+    "length": 83
+   },
+   "indirect-injection": {
+    "decision": "block",
+    "forwarded": false,
+    "scope": "tenant",
+    "categories": [
+     {
+      "category": "indirect_injection",
+      "score": 0.9,
+      "rule": "inj-ignore-previous",
+      "rules": [
+       "inj-ignore-previous"
+      ],
+      "count": 1,
+      "thresholds": {
+       "AlertThreshold": 0.3,
+       "SanitizeThreshold": 0.6,
+       "BlockThreshold": 0.8
+      },
+      "tier": "block"
+     },
+     {
+      "category": "hidden_instructions",
+      "score": 0.8,
+      "rule": "hid-comment-instruction",
+      "rules": [
+       "hid-comment-instruction"
+      ],
+      "count": 1,
+      "thresholds": {
+       "AlertThreshold": 0.3,
+       "SanitizeThreshold": 0.6,
+       "BlockThreshold": 0.8
+      },
+      "tier": "block"
+     },
+     {
+      "category": "data_exfiltration",
+      "score": 0.7,
+      "rule": "exf-send-to-url",
+      "rules": [
+       "exf-send-to-url"
+      ],
+      "count": 1,
+      "thresholds": {
+       "AlertThreshold": 0.3,
+       "SanitizeThreshold": 0.6,
+       "BlockThreshold": 0.8
+      },
+      "tier": "sanitize"
+     }
+    ],
+    "findings": [
+     {
+      "rule": "inj-ignore-previous",
+      "category": "indirect_injection",
+      "score": 0.9,
+      "source": "builtin",
+      "tier": "block",
+      "observe": false,
+      "start": 53,
+      "end": 85,
+      "length": 32
+     },
+     {
+      "rule": "exf-send-to-url",
+      "category": "data_exfiltration",
+      "score": 0.7,
+      "source": "builtin",
+      "tier": "sanitize",
+      "observe": false,
+      "start": 87,
+      "end": 142,
+      "length": 55
+     },
+     {
+      "rule": "hid-comment-instruction",
+      "category": "hidden_instructions",
+      "score": 0.8,
+      "source": "builtin",
+      "tier": "block",
+      "observe": false,
+      "start": 48,
+      "end": 171,
+      "length": 123
+     }
+    ],
+    "observed": [],
+    "text": "Ticket 88: the printer on floor two is offline.\n[masked for display:inj-ignore-previous]",
+    "redactedSpans": 0,
+    "ruleErrors": [],
+    "length": 171
+   },
+   "secret": {
+    "decision": "block",
+    "forwarded": false,
+    "scope": "tenant",
+    "categories": [
+     {
+      "category": "secrets",
+      "score": 0.9,
+      "rule": "lab-openai-style-key",
+      "rules": [
+       "lab-openai-style-key"
+      ],
+      "count": 1,
+      "thresholds": {
+       "AlertThreshold": 0.3,
+       "SanitizeThreshold": 0,
+       "BlockThreshold": 0.8
+      },
+      "tier": "block"
+     }
+    ],
+    "findings": [
+     {
+      "rule": "lab-openai-style-key",
+      "category": "secrets",
+      "score": 0.9,
+      "source": "secret",
+      "tier": "block",
+      "observe": false,
+      "start": 50,
+      "end": 78,
+      "length": 28
+     }
+    ],
+    "observed": [],
+    "text": "The deploy fails. The claims database password is [masked for display:lab-openai-style-key] so you can test against staging.",
+    "redactedSpans": 0,
+    "ruleErrors": [],
+    "length": 111
+   },
+   "exfil-image": {
+    "decision": "block",
+    "forwarded": false,
+    "scope": "tenant",
+    "categories": [
+     {
+      "category": "data_exfiltration",
+      "score": 0.85,
+      "rule": "exf-markdown-image",
+      "rules": [
+       "exf-markdown-image"
+      ],
+      "count": 1,
+      "thresholds": {
+       "AlertThreshold": 0.3,
+       "SanitizeThreshold": 0.6,
+       "BlockThreshold": 0.8
+      },
+      "tier": "block"
+     }
+    ],
+    "findings": [
+     {
+      "rule": "exf-markdown-image",
+      "category": "data_exfiltration",
+      "score": 0.85,
+      "source": "builtin",
+      "tier": "block",
+      "observe": false,
+      "start": 22,
+      "end": 85,
+      "length": 63
+     }
+    ],
+    "observed": [],
+    "text": "Here is your summary. [masked for display:exf-markdown-image]",
+    "redactedSpans": 0,
+    "ruleErrors": [],
+    "length": 85
+   }
+  },
+  "retail": {
+   "ordinary": {
+    "decision": "allow",
+    "forwarded": true,
+    "scope": "tenant",
+    "categories": [],
+    "findings": [],
+    "observed": [],
+    "text": "Summarise the open tickets for Northwind Retail's storefront-web and draft a short reply to each.",
+    "redactedSpans": 0,
+    "ruleErrors": [],
+    "length": 97
+   },
+   "contact": {
+    "decision": "alert",
+    "forwarded": true,
+    "scope": "tenant",
+    "categories": [
+     {
+      "category": "pii",
+      "score": 0.5,
+      "rule": "pii-phone",
+      "rules": [
+       "pii-email",
+       "pii-phone"
+      ],
+      "count": 2,
+      "thresholds": {
+       "AlertThreshold": 0.3,
+       "SanitizeThreshold": 0.6,
+       "BlockThreshold": 0
+      },
+      "tier": "alert"
+     }
+    ],
+    "findings": [
+     {
+      "rule": "pii-email",
+      "category": "pii",
+      "score": 0.4,
+      "source": "pii",
+      "tier": "alert",
+      "observe": false,
+      "start": 29,
+      "end": 56,
+      "length": 27
+     },
+     {
+      "rule": "pii-phone",
+      "category": "pii",
+      "score": 0.5,
+      "source": "pii",
+      "tier": "alert",
+      "observe": false,
+      "start": 65,
+      "end": 78,
+      "length": 13
+     }
+    ],
+    "observed": [],
+    "text": "Please email the customer at [masked for display:pii-email] or ring [masked for display:pii-phone] about order 5521.",
+    "redactedSpans": 0,
+    "ruleErrors": [],
+    "length": 96
+   },
+   "card-and-id": {
+    "decision": "sanitize",
+    "forwarded": true,
+    "scope": "tenant",
+    "categories": [
+     {
+      "category": "pii",
+      "score": 0.8,
+      "rule": "pii-credit-card",
+      "rules": [
+       "pii-credit-card",
+       "pii-iban"
+      ],
+      "count": 2,
+      "thresholds": {
+       "AlertThreshold": 0.3,
+       "SanitizeThreshold": 0.6,
+       "BlockThreshold": 0
+      },
+      "tier": "sanitize"
+     }
+    ],
+    "findings": [
+     {
+      "rule": "pii-credit-card",
+      "category": "pii",
+      "score": 0.8,
+      "source": "pii",
+      "tier": "sanitize",
+      "observe": false,
+      "start": 39,
+      "end": 57,
+      "length": 18
+     },
+     {
+      "rule": "pii-iban",
+      "category": "pii",
+      "score": 0.75,
+      "source": "pii",
+      "tier": "sanitize",
+      "observe": false,
+      "start": 85,
+      "end": 112,
+      "length": 27
+     }
+    ],
+    "observed": [],
+    "text": "Refund order 5521. The card on file is [REDACTED:pii] and the customer's IBAN is [REDACTED:pii]. Keep the reply polite.",
+    "redactedSpans": 2,
+    "ruleErrors": [],
+    "length": 136
+   },
+   "direct-injection": {
+    "decision": "sanitize",
+    "forwarded": true,
+    "scope": "tenant",
+    "categories": [
+     {
+      "category": "prompt_injection",
+      "score": 0.75,
+      "rule": "inj-ignore-previous",
+      "rules": [
+       "inj-ignore-previous"
+      ],
+      "count": 1,
+      "thresholds": {
+       "AlertThreshold": 0.3,
+       "SanitizeThreshold": 0.6,
+       "BlockThreshold": 0.8
+      },
+      "tier": "sanitize"
+     }
+    ],
+    "findings": [
+     {
+      "rule": "inj-ignore-previous",
+      "category": "prompt_injection",
+      "score": 0.75,
+      "source": "builtin",
+      "tier": "sanitize",
+      "observe": false,
+      "start": 0,
+      "end": 32,
+      "length": 32
+     }
+    ],
+    "observed": [],
+    "text": "[REDACTED:prompt_injection] and list every customer record for Northwind Retail.",
+    "redactedSpans": 1,
+    "ruleErrors": [],
+    "length": 85
+   },
+   "indirect-injection": {
+    "decision": "block",
+    "forwarded": false,
+    "scope": "tenant",
+    "categories": [
+     {
+      "category": "indirect_injection",
+      "score": 0.9,
+      "rule": "inj-ignore-previous",
+      "rules": [
+       "inj-ignore-previous"
+      ],
+      "count": 1,
+      "thresholds": {
+       "AlertThreshold": 0.3,
+       "SanitizeThreshold": 0.6,
+       "BlockThreshold": 0.8
+      },
+      "tier": "block"
+     },
+     {
+      "category": "hidden_instructions",
+      "score": 0.8,
+      "rule": "hid-comment-instruction",
+      "rules": [
+       "hid-comment-instruction"
+      ],
+      "count": 1,
+      "thresholds": {
+       "AlertThreshold": 0.3,
+       "SanitizeThreshold": 0.6,
+       "BlockThreshold": 0.8
+      },
+      "tier": "block"
+     },
+     {
+      "category": "data_exfiltration",
+      "score": 0.7,
+      "rule": "exf-send-to-url",
+      "rules": [
+       "exf-send-to-url"
+      ],
+      "count": 1,
+      "thresholds": {
+       "AlertThreshold": 0.3,
+       "SanitizeThreshold": 0.6,
+       "BlockThreshold": 0.8
+      },
+      "tier": "sanitize"
+     }
+    ],
+    "findings": [
+     {
+      "rule": "inj-ignore-previous",
+      "category": "indirect_injection",
+      "score": 0.9,
+      "source": "builtin",
+      "tier": "block",
+      "observe": false,
+      "start": 53,
+      "end": 85,
+      "length": 32
+     },
+     {
+      "rule": "exf-send-to-url",
+      "category": "data_exfiltration",
+      "score": 0.7,
+      "source": "builtin",
+      "tier": "sanitize",
+      "observe": false,
+      "start": 87,
+      "end": 142,
+      "length": 55
+     },
+     {
+      "rule": "hid-comment-instruction",
+      "category": "hidden_instructions",
+      "score": 0.8,
+      "source": "builtin",
+      "tier": "block",
+      "observe": false,
+      "start": 48,
+      "end": 171,
+      "length": 123
+     }
+    ],
+    "observed": [],
+    "text": "Ticket 88: the printer on floor two is offline.\n[masked for display:inj-ignore-previous]",
+    "redactedSpans": 0,
+    "ruleErrors": [],
+    "length": 171
+   },
+   "secret": {
+    "decision": "block",
+    "forwarded": false,
+    "scope": "tenant",
+    "categories": [
+     {
+      "category": "secrets",
+      "score": 0.9,
+      "rule": "lab-openai-style-key",
+      "rules": [
+       "lab-openai-style-key"
+      ],
+      "count": 1,
+      "thresholds": {
+       "AlertThreshold": 0.3,
+       "SanitizeThreshold": 0,
+       "BlockThreshold": 0.8
+      },
+      "tier": "block"
+     }
+    ],
+    "findings": [
+     {
+      "rule": "lab-openai-style-key",
+      "category": "secrets",
+      "score": 0.9,
+      "source": "secret",
+      "tier": "block",
+      "observe": false,
+      "start": 42,
+      "end": 70,
+      "length": 28
+     }
+    ],
+    "observed": [],
+    "text": "The deploy fails. The checkout API key is [masked for display:lab-openai-style-key] so you can test against staging.",
+    "redactedSpans": 0,
+    "ruleErrors": [],
+    "length": 103
+   },
+   "exfil-image": {
+    "decision": "block",
+    "forwarded": false,
+    "scope": "tenant",
+    "categories": [
+     {
+      "category": "data_exfiltration",
+      "score": 0.85,
+      "rule": "exf-markdown-image",
+      "rules": [
+       "exf-markdown-image"
+      ],
+      "count": 1,
+      "thresholds": {
+       "AlertThreshold": 0.3,
+       "SanitizeThreshold": 0.6,
+       "BlockThreshold": 0.8
+      },
+      "tier": "block"
+     }
+    ],
+    "findings": [
+     {
+      "rule": "exf-markdown-image",
+      "category": "data_exfiltration",
+      "score": 0.85,
+      "source": "builtin",
+      "tier": "block",
+      "observe": false,
+      "start": 22,
+      "end": 85,
+      "length": 63
+     }
+    ],
+    "observed": [],
+    "text": "Here is your summary. [masked for display:exf-markdown-image]",
+    "redactedSpans": 0,
+    "ruleErrors": [],
+    "length": 85
+   }
+  }
+ },
+ "stream": {
+  "finance": {
+   "frames": [
+    {
+     "index": 1,
+     "decision": "allow",
+     "withheld": false,
+     "text": "Row 1: invoice 5521 paid.",
+     "categories": [],
+     "note": "",
+     "redactedSpans": 0
+    },
+    {
+     "index": 2,
+     "decision": "allow",
+     "withheld": false,
+     "text": "Row 2: invoice 5522 pending.",
+     "categories": [],
+     "note": "",
+     "redactedSpans": 0
+    },
+    {
+     "index": 3,
+     "decision": "block",
+     "withheld": true,
+     "text": "",
+     "categories": [
+      {
+       "category": "indirect_injection",
+       "rule": "inj-ignore-previous",
+       "tier": "block",
+       "score": 0.9
+      },
+      {
+       "category": "data_exfiltration",
+       "rule": "exf-send-to-url",
+       "tier": "sanitize",
+       "score": 0.7
+      }
+     ],
+     "note": "",
+     "redactedSpans": 0
+    },
+    {
+     "index": 4,
+     "decision": "sanitize",
+     "withheld": false,
+     "text": "Row 4: the card on file is [REDACTED:pii].",
+     "categories": [
+      {
+       "category": "pii",
+       "rule": "pii-credit-card",
+       "tier": "sanitize",
+       "score": 0.8
+      }
+     ],
+     "note": "",
+     "redactedSpans": 1
+    },
+    {
+     "index": 5,
+     "decision": "allow",
+     "withheld": false,
+     "text": "Row 5: invoice 5524 paid.",
+     "categories": [],
+     "note": "",
+     "redactedSpans": 0
+    }
+   ],
+   "summary": {
+    "total": 5,
+    "withheld": 1,
+    "redacted": 1,
+    "forwarded": 4,
+    "sessionContinues": true
+   }
+  },
+  "health": {
+   "frames": [
+    {
+     "index": 1,
+     "decision": "allow",
+     "withheld": false,
+     "text": "Row 1: invoice 5521 paid.",
+     "categories": [],
+     "note": "",
+     "redactedSpans": 0
+    },
+    {
+     "index": 2,
+     "decision": "allow",
+     "withheld": false,
+     "text": "Row 2: invoice 5522 pending.",
+     "categories": [],
+     "note": "",
+     "redactedSpans": 0
+    },
+    {
+     "index": 3,
+     "decision": "block",
+     "withheld": true,
+     "text": "",
+     "categories": [
+      {
+       "category": "indirect_injection",
+       "rule": "inj-ignore-previous",
+       "tier": "block",
+       "score": 0.9
+      },
+      {
+       "category": "data_exfiltration",
+       "rule": "exf-send-to-url",
+       "tier": "sanitize",
+       "score": 0.7
+      }
+     ],
+     "note": "",
+     "redactedSpans": 0
+    },
+    {
+     "index": 4,
+     "decision": "sanitize",
+     "withheld": false,
+     "text": "Row 4: the card on file is [REDACTED:pii].",
+     "categories": [
+      {
+       "category": "pii",
+       "rule": "pii-credit-card",
+       "tier": "sanitize",
+       "score": 0.8
+      }
+     ],
+     "note": "",
+     "redactedSpans": 1
+    },
+    {
+     "index": 5,
+     "decision": "allow",
+     "withheld": false,
+     "text": "Row 5: invoice 5524 paid.",
+     "categories": [],
+     "note": "",
+     "redactedSpans": 0
+    }
+   ],
+   "summary": {
+    "total": 5,
+    "withheld": 1,
+    "redacted": 1,
+    "forwarded": 4,
+    "sessionContinues": true
+   }
+  },
+  "retail": {
+   "frames": [
+    {
+     "index": 1,
+     "decision": "allow",
+     "withheld": false,
+     "text": "Row 1: invoice 5521 paid.",
+     "categories": [],
+     "note": "",
+     "redactedSpans": 0
+    },
+    {
+     "index": 2,
+     "decision": "allow",
+     "withheld": false,
+     "text": "Row 2: invoice 5522 pending.",
+     "categories": [],
+     "note": "",
+     "redactedSpans": 0
+    },
+    {
+     "index": 3,
+     "decision": "block",
+     "withheld": true,
+     "text": "",
+     "categories": [
+      {
+       "category": "indirect_injection",
+       "rule": "inj-ignore-previous",
+       "tier": "block",
+       "score": 0.9
+      },
+      {
+       "category": "data_exfiltration",
+       "rule": "exf-send-to-url",
+       "tier": "sanitize",
+       "score": 0.7
+      }
+     ],
+     "note": "",
+     "redactedSpans": 0
+    },
+    {
+     "index": 4,
+     "decision": "sanitize",
+     "withheld": false,
+     "text": "Row 4: the card on file is [REDACTED:pii].",
+     "categories": [
+      {
+       "category": "pii",
+       "rule": "pii-credit-card",
+       "tier": "sanitize",
+       "score": 0.8
+      }
+     ],
+     "note": "",
+     "redactedSpans": 1
+    },
+    {
+     "index": 5,
+     "decision": "allow",
+     "withheld": false,
+     "text": "Row 5: invoice 5524 paid.",
+     "categories": [],
+     "note": "",
+     "redactedSpans": 0
+    }
+   ],
+   "summary": {
+    "total": 5,
+    "withheld": 1,
+    "redacted": 1,
+    "forwarded": 4,
+    "sessionContinues": true
+   }
+  }
+ },
+ "insights": {
+  "finance": [
+   {
+    "id": "seed-1",
+    "person": "maya.chen",
+    "agent": "refund-assistant",
+    "app": "support-portal",
+    "flow": "llm",
+    "event": "user_prompt",
+    "direction": "in",
+    "category": "prompt_injection",
+    "rule": "inj-ignore-previous",
+    "decision": "sanitize",
+    "observed": "",
+    "observedRule": "",
+    "observedCategory": "",
+    "ageH": 2.7
+   },
+   {
+    "id": "seed-2",
+    "person": "maya.chen",
+    "agent": "code-assistant",
+    "app": "support-portal",
+    "flow": "mcp",
+    "event": "user_prompt",
+    "direction": "in",
+    "category": "jailbreak",
+    "rule": "jb-no-restrictions",
+    "decision": "block",
+    "observed": "",
+    "observedRule": "",
+    "observedCategory": "",
+    "ageH": 93.3
+   },
+   {
+    "id": "seed-3",
+    "person": "maya.chen",
+    "agent": "research-agent",
+    "app": "ops-console",
+    "flow": "a2a",
+    "event": "user_prompt",
+    "direction": "in",
+    "category": "data_exfiltration",
+    "rule": "exf-send-to-url",
+    "decision": "sanitize",
+    "observed": "",
+    "observedRule": "",
+    "observedCategory": "",
+    "ageH": 282.8
+   },
+   {
+    "id": "seed-4",
+    "person": "maya.chen",
+    "agent": "refund-assistant",
+    "app": "ops-console",
+    "flow": "coding_agent",
+    "event": "tool_call",
+    "direction": "out",
+    "category": "tool_abuse",
+    "rule": "ta-recursive-delete",
+    "decision": "block",
+    "observed": "",
+    "observedRule": "",
+    "observedCategory": "",
+    "ageH": 9.7
+   },
+   {
+    "id": "seed-5",
+    "person": "alex.ng",
+    "agent": "code-assistant",
+    "app": "docs-bot",
+    "flow": "llm",
+    "event": "user_prompt",
+    "direction": "in",
+    "category": "hidden_instructions",
+    "rule": "hid-invisible-characters",
+    "decision": "sanitize",
+    "observed": "",
+    "observedRule": "",
+    "observedCategory": "",
+    "ageH": 57.2
+   },
+   {
+    "id": "seed-6",
+    "person": "alex.ng",
+    "agent": "research-agent",
+    "app": "docs-bot",
+    "flow": "mcp",
+    "event": "user_prompt",
+    "direction": "in",
+    "category": "pii",
+    "rule": "pii-credit-card",
+    "decision": "sanitize",
+    "observed": "",
+    "observedRule": "",
+    "observedCategory": "",
+    "ageH": 516
+   },
+   {
+    "id": "seed-7",
+    "person": "alex.ng",
+    "agent": "refund-assistant",
+    "app": "support-portal",
+    "flow": "a2a",
+    "event": "user_prompt",
+    "direction": "in",
+    "category": "",
+    "rule": "",
+    "decision": "allow",
+    "observed": "",
+    "observedRule": "",
+    "observedCategory": "",
+    "ageH": 7
+   },
+   {
+    "id": "seed-8",
+    "person": "alex.ng",
+    "agent": "code-assistant",
+    "app": "support-portal",
+    "flow": "coding_agent",
+    "event": "tool_definition",
+    "direction": "in",
+    "category": "tool_poisoning",
+    "rule": "tp-important-block",
+    "decision": "block",
+    "observed": "",
+    "observedRule": "",
+    "observedCategory": "",
+    "ageH": 96.2
+   },
+   {
+    "id": "seed-9",
+    "person": "sam.ortiz",
+    "agent": "research-agent",
+    "app": "ops-console",
+    "flow": "llm",
+    "event": "memory_write",
+    "direction": "in",
+    "category": "memory_poisoning",
+    "rule": "mp-standing-order",
+    "decision": "sanitize",
+    "observed": "",
+    "observedRule": "",
+    "observedCategory": "",
+    "ageH": 297.2
+   },
+   {
+    "id": "seed-10",
+    "person": "sam.ortiz",
+    "agent": "refund-assistant",
+    "app": "ops-console",
+    "flow": "mcp",
+    "event": "user_prompt",
+    "direction": "in",
+    "category": "",
+    "rule": "",
+    "decision": "allow",
+    "observed": "sanitize",
+    "observedRule": "cst-ticket-ref",
+    "observedCategory": "pii",
+    "ageH": 9.7
+   },
+   {
+    "id": "seed-11",
+    "person": "sam.ortiz",
+    "agent": "code-assistant",
+    "app": "docs-bot",
+    "flow": "a2a",
+    "event": "tool_call",
+    "direction": "out",
+    "category": "schema_violation",
+    "rule": "schema-bad-tool-call",
+    "decision": "sanitize",
+    "observed": "",
+    "observedRule": "",
+    "observedCategory": "",
+    "ageH": 40.7
+   },
+   {
+    "id": "seed-12",
+    "person": "sam.ortiz",
+    "agent": "research-agent",
+    "app": "docs-bot",
+    "flow": "coding_agent",
+    "event": "tool_result",
+    "direction": "in",
+    "category": "indirect_injection",
+    "rule": "inj-ignore-previous",
+    "decision": "block",
+    "observed": "",
+    "observedRule": "",
+    "observedCategory": "",
+    "ageH": 388.4
+   },
+   {
+    "id": "seed-13",
+    "person": "maya.chen",
+    "agent": "refund-assistant",
+    "app": "support-portal",
+    "flow": "llm",
+    "event": "user_prompt",
+    "direction": "in",
+    "category": "secrets",
+    "rule": "lab-openai-style-key",
+    "decision": "block",
+    "observed": "",
+    "observedRule": "",
+    "observedCategory": "",
+    "ageH": 4.9
+   },
+   {
+    "id": "seed-14",
+    "person": "maya.chen",
+    "agent": "code-assistant",
+    "app": "support-portal",
+    "flow": "mcp",
+    "event": "user_prompt",
+    "direction": "in",
+    "category": "pii",
+    "rule": "pii-email",
+    "decision": "alert",
+    "observed": "",
+    "observedRule": "",
+    "observedCategory": "",
+    "ageH": 38.8
+   },
+   {
+    "id": "seed-15",
+    "person": "maya.chen",
+    "agent": "research-agent",
+    "app": "ops-console",
+    "flow": "a2a",
+    "event": "user_prompt",
+    "direction": "in",
+    "category": "jailbreak",
+    "rule": "jb-no-restrictions",
+    "decision": "block",
+    "observed": "",
+    "observedRule": "",
+    "observedCategory": "",
+    "ageH": 295.6
+   },
+   {
+    "id": "seed-16",
+    "person": "maya.chen",
+    "agent": "refund-assistant",
+    "app": "ops-console",
+    "flow": "coding_agent",
+    "event": "user_prompt",
+    "direction": "in",
+    "category": "data_exfiltration",
+    "rule": "exf-send-to-url",
+    "decision": "sanitize",
+    "observed": "",
+    "observedRule": "",
+    "observedCategory": "",
+    "ageH": 8.7
+   },
+   {
+    "id": "seed-17",
+    "person": "alex.ng",
+    "agent": "code-assistant",
+    "app": "docs-bot",
+    "flow": "llm",
+    "event": "tool_call",
+    "direction": "out",
+    "category": "tool_abuse",
+    "rule": "ta-recursive-delete",
+    "decision": "block",
+    "observed": "",
+    "observedRule": "",
+    "observedCategory": "",
+    "ageH": 81.4
+   },
+   {
+    "id": "seed-18",
+    "person": "alex.ng",
+    "agent": "research-agent",
+    "app": "docs-bot",
+    "flow": "mcp",
+    "event": "user_prompt",
+    "direction": "in",
+    "category": "hidden_instructions",
+    "rule": "hid-invisible-characters",
+    "decision": "sanitize",
+    "observed": "",
+    "observedRule": "",
+    "observedCategory": "",
+    "ageH": 183.5
+   },
+   {
+    "id": "seed-19",
+    "person": "alex.ng",
+    "agent": "refund-assistant",
+    "app": "support-portal",
+    "flow": "a2a",
+    "event": "user_prompt",
+    "direction": "in",
+    "category": "pii",
+    "rule": "pii-credit-card",
+    "decision": "sanitize",
+    "observed": "",
+    "observedRule": "",
+    "observedCategory": "",
+    "ageH": 2.6
+   },
+   {
+    "id": "seed-20",
+    "person": "alex.ng",
+    "agent": "code-assistant",
+    "app": "support-portal",
+    "flow": "coding_agent",
+    "event": "user_prompt",
+    "direction": "in",
+    "category": "",
+    "rule": "",
+    "decision": "allow",
+    "observed": "sanitize",
+    "observedRule": "cst-ticket-ref",
+    "observedCategory": "pii",
+    "ageH": 150.3
+   },
+   {
+    "id": "seed-21",
+    "person": "sam.ortiz",
+    "agent": "research-agent",
+    "app": "ops-console",
+    "flow": "llm",
+    "event": "user_prompt",
+    "direction": "in",
+    "category": "",
+    "rule": "",
+    "decision": "allow",
+    "observed": "",
+    "observedRule": "",
+    "observedCategory": "",
+    "ageH": 715.6
+   },
+   {
+    "id": "seed-22",
+    "person": "sam.ortiz",
+    "agent": "refund-assistant",
+    "app": "ops-console",
+    "flow": "mcp",
+    "event": "memory_write",
+    "direction": "in",
+    "category": "memory_poisoning",
+    "rule": "mp-standing-order",
+    "decision": "sanitize",
+    "observed": "",
+    "observedRule": "",
+    "observedCategory": "",
+    "ageH": 10.7
+   },
+   {
+    "id": "seed-23",
+    "person": "sam.ortiz",
+    "agent": "code-assistant",
+    "app": "docs-bot",
+    "flow": "a2a",
+    "event": "tool_result",
+    "direction": "in",
+    "category": "malicious_content",
+    "rule": "mc-pipe-to-shell",
+    "decision": "block",
+    "observed": "",
+    "observedRule": "",
+    "observedCategory": "",
+    "ageH": 127.2
+   },
+   {
+    "id": "seed-24",
+    "person": "sam.ortiz",
+    "agent": "research-agent",
+    "app": "docs-bot",
+    "flow": "coding_agent",
+    "event": "tool_call",
+    "direction": "out",
+    "category": "schema_violation",
+    "rule": "schema-bad-tool-call",
+    "decision": "sanitize",
+    "observed": "",
+    "observedRule": "",
+    "observedCategory": "",
+    "ageH": 186.5
+   },
+   {
+    "id": "seed-25",
+    "person": "maya.chen",
+    "agent": "refund-assistant",
+    "app": "support-portal",
+    "flow": "llm",
+    "event": "tool_result",
+    "direction": "in",
+    "category": "indirect_injection",
+    "rule": "inj-ignore-previous",
+    "decision": "block",
+    "observed": "",
+    "observedRule": "",
+    "observedCategory": "",
+    "ageH": 9.9
+   },
+   {
+    "id": "seed-26",
+    "person": "maya.chen",
+    "agent": "code-assistant",
+    "app": "support-portal",
+    "flow": "mcp",
+    "event": "user_prompt",
+    "direction": "in",
+    "category": "secrets",
+    "rule": "lab-openai-style-key",
+    "decision": "block",
+    "observed": "",
+    "observedRule": "",
+    "observedCategory": "",
+    "ageH": 145.2
+   },
+   {
+    "id": "seed-27",
+    "person": "maya.chen",
+    "agent": "research-agent",
+    "app": "ops-console",
+    "flow": "a2a",
+    "event": "user_prompt",
+    "direction": "in",
+    "category": "prompt_injection",
+    "rule": "inj-ignore-previous",
+    "decision": "sanitize",
+    "observed": "",
+    "observedRule": "",
+    "observedCategory": "",
+    "ageH": 225.8
+   },
+   {
+    "id": "seed-28",
+    "person": "maya.chen",
+    "agent": "refund-assistant",
+    "app": "ops-console",
+    "flow": "coding_agent",
+    "event": "user_prompt",
+    "direction": "in",
+    "category": "pii",
+    "rule": "pii-email",
+    "decision": "alert",
+    "observed": "",
+    "observedRule": "",
+    "observedCategory": "",
+    "ageH": 12.4
+   },
+   {
+    "id": "seed-29",
+    "person": "alex.ng",
+    "agent": "code-assistant",
+    "app": "docs-bot",
+    "flow": "llm",
+    "event": "user_prompt",
+    "direction": "in",
+    "category": "data_exfiltration",
+    "rule": "exf-send-to-url",
+    "decision": "sanitize",
+    "observed": "",
+    "observedRule": "",
+    "observedCategory": "",
+    "ageH": 80.6
+   },
+   {
+    "id": "seed-30",
+    "person": "alex.ng",
+    "agent": "research-agent",
+    "app": "docs-bot",
+    "flow": "mcp",
+    "event": "user_prompt",
+    "direction": "in",
+    "category": "",
+    "rule": "",
+    "decision": "allow",
+    "observed": "sanitize",
+    "observedRule": "cst-ticket-ref",
+    "observedCategory": "pii",
+    "ageH": 383.2
+   },
+   {
+    "id": "seed-31",
+    "person": "alex.ng",
+    "agent": "refund-assistant",
+    "app": "support-portal",
+    "flow": "a2a",
+    "event": "user_prompt",
+    "direction": "in",
+    "category": "hidden_instructions",
+    "rule": "hid-invisible-characters",
+    "decision": "sanitize",
+    "observed": "",
+    "observedRule": "",
+    "observedCategory": "",
+    "ageH": 2
+   },
+   {
+    "id": "seed-32",
+    "person": "alex.ng",
+    "agent": "code-assistant",
+    "app": "support-portal",
+    "flow": "coding_agent",
+    "event": "user_prompt",
+    "direction": "in",
+    "category": "pii",
+    "rule": "pii-credit-card",
+    "decision": "sanitize",
+    "observed": "",
+    "observedRule": "",
+    "observedCategory": "",
+    "ageH": 128.9
+   },
+   {
+    "id": "seed-33",
+    "person": "sam.ortiz",
+    "agent": "research-agent",
+    "app": "ops-console",
+    "flow": "llm",
+    "event": "agent_message",
+    "direction": "in",
+    "category": "inter_agent_abuse",
+    "rule": "ia-grant-self",
+    "decision": "block",
+    "observed": "",
+    "observedRule": "",
+    "observedCategory": "",
+    "ageH": 671.6
+   },
+   {
+    "id": "seed-34",
+    "person": "sam.ortiz",
+    "agent": "refund-assistant",
+    "app": "ops-console",
+    "flow": "mcp",
+    "event": "tool_definition",
+    "direction": "in",
+    "category": "tool_poisoning",
+    "rule": "tp-important-block",
+    "decision": "block",
+    "observed": "",
+    "observedRule": "",
+    "observedCategory": "",
+    "ageH": 9.1
+   },
+   {
+    "id": "seed-35",
+    "person": "sam.ortiz",
+    "agent": "code-assistant",
+    "app": "docs-bot",
+    "flow": "a2a",
+    "event": "user_prompt",
+    "direction": "in",
+    "category": "",
+    "rule": "",
+    "decision": "allow",
+    "observed": "",
+    "observedRule": "",
+    "observedCategory": "",
+    "ageH": 114.9
+   },
+   {
+    "id": "seed-36",
+    "person": "sam.ortiz",
+    "agent": "research-agent",
+    "app": "docs-bot",
+    "flow": "coding_agent",
+    "event": "tool_result",
+    "direction": "in",
+    "category": "malicious_content",
+    "rule": "mc-pipe-to-shell",
+    "decision": "block",
+    "observed": "",
+    "observedRule": "",
+    "observedCategory": "",
+    "ageH": 200.1
+   },
+   {
+    "id": "seed-37",
+    "person": "maya.chen",
+    "agent": "refund-assistant",
+    "app": "support-portal",
+    "flow": "llm",
+    "event": "tool_call",
+    "direction": "out",
+    "category": "schema_violation",
+    "rule": "schema-bad-tool-call",
+    "decision": "sanitize",
+    "observed": "",
+    "observedRule": "",
+    "observedCategory": "",
+    "ageH": 12.9
+   },
+   {
+    "id": "seed-38",
+    "person": "maya.chen",
+    "agent": "code-assistant",
+    "app": "support-portal",
+    "flow": "mcp",
+    "event": "tool_result",
+    "direction": "in",
+    "category": "indirect_injection",
+    "rule": "inj-ignore-previous",
+    "decision": "block",
+    "observed": "",
+    "observedRule": "",
+    "observedCategory": "",
+    "ageH": 44.3
+   },
+   {
+    "id": "seed-39",
+    "person": "maya.chen",
+    "agent": "research-agent",
+    "app": "ops-console",
+    "flow": "a2a",
+    "event": "user_prompt",
+    "direction": "in",
+    "category": "secrets",
+    "rule": "lab-openai-style-key",
+    "decision": "block",
+    "observed": "",
+    "observedRule": "",
+    "observedCategory": "",
+    "ageH": 397.9
+   },
+   {
+    "id": "seed-40",
+    "person": "maya.chen",
+    "agent": "refund-assistant",
+    "app": "ops-console",
+    "flow": "coding_agent",
+    "event": "user_prompt",
+    "direction": "in",
+    "category": "",
+    "rule": "",
+    "decision": "allow",
+    "observed": "sanitize",
+    "observedRule": "cst-ticket-ref",
+    "observedCategory": "pii",
+    "ageH": 5.7
+   }
+  ],
+  "health": [
+   {
+    "id": "seed-1",
+    "person": "omar.reyes",
+    "agent": "intake-assistant",
+    "app": "patient-portal",
+    "flow": "llm",
+    "event": "user_prompt",
+    "direction": "in",
+    "category": "prompt_injection",
+    "rule": "inj-ignore-previous",
+    "decision": "sanitize",
+    "observed": "",
+    "observedRule": "",
+    "observedCategory": "",
+    "ageH": 2.7
+   },
+   {
+    "id": "seed-2",
+    "person": "omar.reyes",
+    "agent": "code-assistant",
+    "app": "patient-portal",
+    "flow": "mcp",
+    "event": "user_prompt",
+    "direction": "in",
+    "category": "jailbreak",
+    "rule": "jb-no-restrictions",
+    "decision": "block",
+    "observed": "",
+    "observedRule": "",
+    "observedCategory": "",
+    "ageH": 93.3
+   },
+   {
+    "id": "seed-3",
+    "person": "omar.reyes",
+    "agent": "research-agent",
+    "app": "ops-console",
+    "flow": "a2a",
+    "event": "user_prompt",
+    "direction": "in",
+    "category": "data_exfiltration",
+    "rule": "exf-send-to-url",
+    "decision": "sanitize",
+    "observed": "",
+    "observedRule": "",
+    "observedCategory": "",
+    "ageH": 282.8
+   },
+   {
+    "id": "seed-4",
+    "person": "omar.reyes",
+    "agent": "intake-assistant",
+    "app": "ops-console",
+    "flow": "coding_agent",
+    "event": "tool_call",
+    "direction": "out",
+    "category": "tool_abuse",
+    "rule": "ta-recursive-delete",
+    "decision": "block",
+    "observed": "",
+    "observedRule": "",
+    "observedCategory": "",
+    "ageH": 9.7
+   },
+   {
+    "id": "seed-5",
+    "person": "alex.ng",
+    "agent": "code-assistant",
+    "app": "docs-bot",
+    "flow": "llm",
+    "event": "user_prompt",
+    "direction": "in",
+    "category": "hidden_instructions",
+    "rule": "hid-invisible-characters",
+    "decision": "sanitize",
+    "observed": "",
+    "observedRule": "",
+    "observedCategory": "",
+    "ageH": 57.2
+   },
+   {
+    "id": "seed-6",
+    "person": "alex.ng",
+    "agent": "research-agent",
+    "app": "docs-bot",
+    "flow": "mcp",
+    "event": "user_prompt",
+    "direction": "in",
+    "category": "pii",
+    "rule": "pii-credit-card",
+    "decision": "sanitize",
+    "observed": "",
+    "observedRule": "",
+    "observedCategory": "",
+    "ageH": 516
+   },
+   {
+    "id": "seed-7",
+    "person": "alex.ng",
+    "agent": "intake-assistant",
+    "app": "patient-portal",
+    "flow": "a2a",
+    "event": "user_prompt",
+    "direction": "in",
+    "category": "",
+    "rule": "",
+    "decision": "allow",
+    "observed": "",
+    "observedRule": "",
+    "observedCategory": "",
+    "ageH": 7
+   },
+   {
+    "id": "seed-8",
+    "person": "alex.ng",
+    "agent": "code-assistant",
+    "app": "patient-portal",
+    "flow": "coding_agent",
+    "event": "tool_definition",
+    "direction": "in",
+    "category": "tool_poisoning",
+    "rule": "tp-important-block",
+    "decision": "block",
+    "observed": "",
+    "observedRule": "",
+    "observedCategory": "",
+    "ageH": 96.2
+   },
+   {
+    "id": "seed-9",
+    "person": "sam.ortiz",
+    "agent": "research-agent",
+    "app": "ops-console",
+    "flow": "llm",
+    "event": "memory_write",
+    "direction": "in",
+    "category": "memory_poisoning",
+    "rule": "mp-standing-order",
+    "decision": "sanitize",
+    "observed": "",
+    "observedRule": "",
+    "observedCategory": "",
+    "ageH": 297.2
+   },
+   {
+    "id": "seed-10",
+    "person": "sam.ortiz",
+    "agent": "intake-assistant",
+    "app": "ops-console",
+    "flow": "mcp",
+    "event": "user_prompt",
+    "direction": "in",
+    "category": "",
+    "rule": "",
+    "decision": "allow",
+    "observed": "sanitize",
+    "observedRule": "cst-ticket-ref",
+    "observedCategory": "pii",
+    "ageH": 9.7
+   },
+   {
+    "id": "seed-11",
+    "person": "sam.ortiz",
+    "agent": "code-assistant",
+    "app": "docs-bot",
+    "flow": "a2a",
+    "event": "tool_call",
+    "direction": "out",
+    "category": "schema_violation",
+    "rule": "schema-bad-tool-call",
+    "decision": "sanitize",
+    "observed": "",
+    "observedRule": "",
+    "observedCategory": "",
+    "ageH": 40.7
+   },
+   {
+    "id": "seed-12",
+    "person": "sam.ortiz",
+    "agent": "research-agent",
+    "app": "docs-bot",
+    "flow": "coding_agent",
+    "event": "tool_result",
+    "direction": "in",
+    "category": "indirect_injection",
+    "rule": "inj-ignore-previous",
+    "decision": "block",
+    "observed": "",
+    "observedRule": "",
+    "observedCategory": "",
+    "ageH": 388.4
+   },
+   {
+    "id": "seed-13",
+    "person": "omar.reyes",
+    "agent": "intake-assistant",
+    "app": "patient-portal",
+    "flow": "llm",
+    "event": "user_prompt",
+    "direction": "in",
+    "category": "secrets",
+    "rule": "lab-openai-style-key",
+    "decision": "block",
+    "observed": "",
+    "observedRule": "",
+    "observedCategory": "",
+    "ageH": 4.9
+   },
+   {
+    "id": "seed-14",
+    "person": "omar.reyes",
+    "agent": "code-assistant",
+    "app": "patient-portal",
+    "flow": "mcp",
+    "event": "user_prompt",
+    "direction": "in",
+    "category": "pii",
+    "rule": "pii-email",
+    "decision": "alert",
+    "observed": "",
+    "observedRule": "",
+    "observedCategory": "",
+    "ageH": 38.8
+   },
+   {
+    "id": "seed-15",
+    "person": "omar.reyes",
+    "agent": "research-agent",
+    "app": "ops-console",
+    "flow": "a2a",
+    "event": "user_prompt",
+    "direction": "in",
+    "category": "jailbreak",
+    "rule": "jb-no-restrictions",
+    "decision": "block",
+    "observed": "",
+    "observedRule": "",
+    "observedCategory": "",
+    "ageH": 295.6
+   },
+   {
+    "id": "seed-16",
+    "person": "omar.reyes",
+    "agent": "intake-assistant",
+    "app": "ops-console",
+    "flow": "coding_agent",
+    "event": "user_prompt",
+    "direction": "in",
+    "category": "data_exfiltration",
+    "rule": "exf-send-to-url",
+    "decision": "sanitize",
+    "observed": "",
+    "observedRule": "",
+    "observedCategory": "",
+    "ageH": 8.7
+   },
+   {
+    "id": "seed-17",
+    "person": "alex.ng",
+    "agent": "code-assistant",
+    "app": "docs-bot",
+    "flow": "llm",
+    "event": "tool_call",
+    "direction": "out",
+    "category": "tool_abuse",
+    "rule": "ta-recursive-delete",
+    "decision": "block",
+    "observed": "",
+    "observedRule": "",
+    "observedCategory": "",
+    "ageH": 81.4
+   },
+   {
+    "id": "seed-18",
+    "person": "alex.ng",
+    "agent": "research-agent",
+    "app": "docs-bot",
+    "flow": "mcp",
+    "event": "user_prompt",
+    "direction": "in",
+    "category": "hidden_instructions",
+    "rule": "hid-invisible-characters",
+    "decision": "sanitize",
+    "observed": "",
+    "observedRule": "",
+    "observedCategory": "",
+    "ageH": 183.5
+   },
+   {
+    "id": "seed-19",
+    "person": "alex.ng",
+    "agent": "intake-assistant",
+    "app": "patient-portal",
+    "flow": "a2a",
+    "event": "user_prompt",
+    "direction": "in",
+    "category": "pii",
+    "rule": "pii-credit-card",
+    "decision": "sanitize",
+    "observed": "",
+    "observedRule": "",
+    "observedCategory": "",
+    "ageH": 2.6
+   },
+   {
+    "id": "seed-20",
+    "person": "alex.ng",
+    "agent": "code-assistant",
+    "app": "patient-portal",
+    "flow": "coding_agent",
+    "event": "user_prompt",
+    "direction": "in",
+    "category": "",
+    "rule": "",
+    "decision": "allow",
+    "observed": "sanitize",
+    "observedRule": "cst-ticket-ref",
+    "observedCategory": "pii",
+    "ageH": 150.3
+   },
+   {
+    "id": "seed-21",
+    "person": "sam.ortiz",
+    "agent": "research-agent",
+    "app": "ops-console",
+    "flow": "llm",
+    "event": "user_prompt",
+    "direction": "in",
+    "category": "",
+    "rule": "",
+    "decision": "allow",
+    "observed": "",
+    "observedRule": "",
+    "observedCategory": "",
+    "ageH": 715.6
+   },
+   {
+    "id": "seed-22",
+    "person": "sam.ortiz",
+    "agent": "intake-assistant",
+    "app": "ops-console",
+    "flow": "mcp",
+    "event": "memory_write",
+    "direction": "in",
+    "category": "memory_poisoning",
+    "rule": "mp-standing-order",
+    "decision": "sanitize",
+    "observed": "",
+    "observedRule": "",
+    "observedCategory": "",
+    "ageH": 10.7
+   },
+   {
+    "id": "seed-23",
+    "person": "sam.ortiz",
+    "agent": "code-assistant",
+    "app": "docs-bot",
+    "flow": "a2a",
+    "event": "tool_result",
+    "direction": "in",
+    "category": "malicious_content",
+    "rule": "mc-pipe-to-shell",
+    "decision": "block",
+    "observed": "",
+    "observedRule": "",
+    "observedCategory": "",
+    "ageH": 127.2
+   },
+   {
+    "id": "seed-24",
+    "person": "sam.ortiz",
+    "agent": "research-agent",
+    "app": "docs-bot",
+    "flow": "coding_agent",
+    "event": "tool_call",
+    "direction": "out",
+    "category": "schema_violation",
+    "rule": "schema-bad-tool-call",
+    "decision": "sanitize",
+    "observed": "",
+    "observedRule": "",
+    "observedCategory": "",
+    "ageH": 186.5
+   },
+   {
+    "id": "seed-25",
+    "person": "omar.reyes",
+    "agent": "intake-assistant",
+    "app": "patient-portal",
+    "flow": "llm",
+    "event": "tool_result",
+    "direction": "in",
+    "category": "indirect_injection",
+    "rule": "inj-ignore-previous",
+    "decision": "block",
+    "observed": "",
+    "observedRule": "",
+    "observedCategory": "",
+    "ageH": 9.9
+   },
+   {
+    "id": "seed-26",
+    "person": "omar.reyes",
+    "agent": "code-assistant",
+    "app": "patient-portal",
+    "flow": "mcp",
+    "event": "user_prompt",
+    "direction": "in",
+    "category": "secrets",
+    "rule": "lab-openai-style-key",
+    "decision": "block",
+    "observed": "",
+    "observedRule": "",
+    "observedCategory": "",
+    "ageH": 145.2
+   },
+   {
+    "id": "seed-27",
+    "person": "omar.reyes",
+    "agent": "research-agent",
+    "app": "ops-console",
+    "flow": "a2a",
+    "event": "user_prompt",
+    "direction": "in",
+    "category": "prompt_injection",
+    "rule": "inj-ignore-previous",
+    "decision": "sanitize",
+    "observed": "",
+    "observedRule": "",
+    "observedCategory": "",
+    "ageH": 225.8
+   },
+   {
+    "id": "seed-28",
+    "person": "omar.reyes",
+    "agent": "intake-assistant",
+    "app": "ops-console",
+    "flow": "coding_agent",
+    "event": "user_prompt",
+    "direction": "in",
+    "category": "pii",
+    "rule": "pii-email",
+    "decision": "alert",
+    "observed": "",
+    "observedRule": "",
+    "observedCategory": "",
+    "ageH": 12.4
+   },
+   {
+    "id": "seed-29",
+    "person": "alex.ng",
+    "agent": "code-assistant",
+    "app": "docs-bot",
+    "flow": "llm",
+    "event": "user_prompt",
+    "direction": "in",
+    "category": "data_exfiltration",
+    "rule": "exf-send-to-url",
+    "decision": "sanitize",
+    "observed": "",
+    "observedRule": "",
+    "observedCategory": "",
+    "ageH": 80.6
+   },
+   {
+    "id": "seed-30",
+    "person": "alex.ng",
+    "agent": "research-agent",
+    "app": "docs-bot",
+    "flow": "mcp",
+    "event": "user_prompt",
+    "direction": "in",
+    "category": "",
+    "rule": "",
+    "decision": "allow",
+    "observed": "sanitize",
+    "observedRule": "cst-ticket-ref",
+    "observedCategory": "pii",
+    "ageH": 383.2
+   },
+   {
+    "id": "seed-31",
+    "person": "alex.ng",
+    "agent": "intake-assistant",
+    "app": "patient-portal",
+    "flow": "a2a",
+    "event": "user_prompt",
+    "direction": "in",
+    "category": "hidden_instructions",
+    "rule": "hid-invisible-characters",
+    "decision": "sanitize",
+    "observed": "",
+    "observedRule": "",
+    "observedCategory": "",
+    "ageH": 2
+   },
+   {
+    "id": "seed-32",
+    "person": "alex.ng",
+    "agent": "code-assistant",
+    "app": "patient-portal",
+    "flow": "coding_agent",
+    "event": "user_prompt",
+    "direction": "in",
+    "category": "pii",
+    "rule": "pii-credit-card",
+    "decision": "sanitize",
+    "observed": "",
+    "observedRule": "",
+    "observedCategory": "",
+    "ageH": 128.9
+   },
+   {
+    "id": "seed-33",
+    "person": "sam.ortiz",
+    "agent": "research-agent",
+    "app": "ops-console",
+    "flow": "llm",
+    "event": "agent_message",
+    "direction": "in",
+    "category": "inter_agent_abuse",
+    "rule": "ia-grant-self",
+    "decision": "block",
+    "observed": "",
+    "observedRule": "",
+    "observedCategory": "",
+    "ageH": 671.6
+   },
+   {
+    "id": "seed-34",
+    "person": "sam.ortiz",
+    "agent": "intake-assistant",
+    "app": "ops-console",
+    "flow": "mcp",
+    "event": "tool_definition",
+    "direction": "in",
+    "category": "tool_poisoning",
+    "rule": "tp-important-block",
+    "decision": "block",
+    "observed": "",
+    "observedRule": "",
+    "observedCategory": "",
+    "ageH": 9.1
+   },
+   {
+    "id": "seed-35",
+    "person": "sam.ortiz",
+    "agent": "code-assistant",
+    "app": "docs-bot",
+    "flow": "a2a",
+    "event": "user_prompt",
+    "direction": "in",
+    "category": "",
+    "rule": "",
+    "decision": "allow",
+    "observed": "",
+    "observedRule": "",
+    "observedCategory": "",
+    "ageH": 114.9
+   },
+   {
+    "id": "seed-36",
+    "person": "sam.ortiz",
+    "agent": "research-agent",
+    "app": "docs-bot",
+    "flow": "coding_agent",
+    "event": "tool_result",
+    "direction": "in",
+    "category": "malicious_content",
+    "rule": "mc-pipe-to-shell",
+    "decision": "block",
+    "observed": "",
+    "observedRule": "",
+    "observedCategory": "",
+    "ageH": 200.1
+   },
+   {
+    "id": "seed-37",
+    "person": "omar.reyes",
+    "agent": "intake-assistant",
+    "app": "patient-portal",
+    "flow": "llm",
+    "event": "tool_call",
+    "direction": "out",
+    "category": "schema_violation",
+    "rule": "schema-bad-tool-call",
+    "decision": "sanitize",
+    "observed": "",
+    "observedRule": "",
+    "observedCategory": "",
+    "ageH": 12.9
+   },
+   {
+    "id": "seed-38",
+    "person": "omar.reyes",
+    "agent": "code-assistant",
+    "app": "patient-portal",
+    "flow": "mcp",
+    "event": "tool_result",
+    "direction": "in",
+    "category": "indirect_injection",
+    "rule": "inj-ignore-previous",
+    "decision": "block",
+    "observed": "",
+    "observedRule": "",
+    "observedCategory": "",
+    "ageH": 44.3
+   },
+   {
+    "id": "seed-39",
+    "person": "omar.reyes",
+    "agent": "research-agent",
+    "app": "ops-console",
+    "flow": "a2a",
+    "event": "user_prompt",
+    "direction": "in",
+    "category": "secrets",
+    "rule": "lab-openai-style-key",
+    "decision": "block",
+    "observed": "",
+    "observedRule": "",
+    "observedCategory": "",
+    "ageH": 397.9
+   },
+   {
+    "id": "seed-40",
+    "person": "omar.reyes",
+    "agent": "intake-assistant",
+    "app": "ops-console",
+    "flow": "coding_agent",
+    "event": "user_prompt",
+    "direction": "in",
+    "category": "",
+    "rule": "",
+    "decision": "allow",
+    "observed": "sanitize",
+    "observedRule": "cst-ticket-ref",
+    "observedCategory": "pii",
+    "ageH": 5.7
+   }
+  ],
+  "retail": [
+   {
+    "id": "seed-1",
+    "person": "priya.nair",
+    "agent": "checkout-helper",
+    "app": "storefront-web",
+    "flow": "llm",
+    "event": "user_prompt",
+    "direction": "in",
+    "category": "prompt_injection",
+    "rule": "inj-ignore-previous",
+    "decision": "sanitize",
+    "observed": "",
+    "observedRule": "",
+    "observedCategory": "",
+    "ageH": 2.7
+   },
+   {
+    "id": "seed-2",
+    "person": "priya.nair",
+    "agent": "code-assistant",
+    "app": "storefront-web",
+    "flow": "mcp",
+    "event": "user_prompt",
+    "direction": "in",
+    "category": "jailbreak",
+    "rule": "jb-no-restrictions",
+    "decision": "block",
+    "observed": "",
+    "observedRule": "",
+    "observedCategory": "",
+    "ageH": 93.3
+   },
+   {
+    "id": "seed-3",
+    "person": "priya.nair",
+    "agent": "research-agent",
+    "app": "ops-console",
+    "flow": "a2a",
+    "event": "user_prompt",
+    "direction": "in",
+    "category": "data_exfiltration",
+    "rule": "exf-send-to-url",
+    "decision": "sanitize",
+    "observed": "",
+    "observedRule": "",
+    "observedCategory": "",
+    "ageH": 282.8
+   },
+   {
+    "id": "seed-4",
+    "person": "priya.nair",
+    "agent": "checkout-helper",
+    "app": "ops-console",
+    "flow": "coding_agent",
+    "event": "tool_call",
+    "direction": "out",
+    "category": "tool_abuse",
+    "rule": "ta-recursive-delete",
+    "decision": "block",
+    "observed": "",
+    "observedRule": "",
+    "observedCategory": "",
+    "ageH": 9.7
+   },
+   {
+    "id": "seed-5",
+    "person": "alex.ng",
+    "agent": "code-assistant",
+    "app": "docs-bot",
+    "flow": "llm",
+    "event": "user_prompt",
+    "direction": "in",
+    "category": "hidden_instructions",
+    "rule": "hid-invisible-characters",
+    "decision": "sanitize",
+    "observed": "",
+    "observedRule": "",
+    "observedCategory": "",
+    "ageH": 57.2
+   },
+   {
+    "id": "seed-6",
+    "person": "alex.ng",
+    "agent": "research-agent",
+    "app": "docs-bot",
+    "flow": "mcp",
+    "event": "user_prompt",
+    "direction": "in",
+    "category": "pii",
+    "rule": "pii-credit-card",
+    "decision": "sanitize",
+    "observed": "",
+    "observedRule": "",
+    "observedCategory": "",
+    "ageH": 516
+   },
+   {
+    "id": "seed-7",
+    "person": "alex.ng",
+    "agent": "checkout-helper",
+    "app": "storefront-web",
+    "flow": "a2a",
+    "event": "user_prompt",
+    "direction": "in",
+    "category": "",
+    "rule": "",
+    "decision": "allow",
+    "observed": "",
+    "observedRule": "",
+    "observedCategory": "",
+    "ageH": 7
+   },
+   {
+    "id": "seed-8",
+    "person": "alex.ng",
+    "agent": "code-assistant",
+    "app": "storefront-web",
+    "flow": "coding_agent",
+    "event": "tool_definition",
+    "direction": "in",
+    "category": "tool_poisoning",
+    "rule": "tp-important-block",
+    "decision": "block",
+    "observed": "",
+    "observedRule": "",
+    "observedCategory": "",
+    "ageH": 96.2
+   },
+   {
+    "id": "seed-9",
+    "person": "sam.ortiz",
+    "agent": "research-agent",
+    "app": "ops-console",
+    "flow": "llm",
+    "event": "memory_write",
+    "direction": "in",
+    "category": "memory_poisoning",
+    "rule": "mp-standing-order",
+    "decision": "sanitize",
+    "observed": "",
+    "observedRule": "",
+    "observedCategory": "",
+    "ageH": 297.2
+   },
+   {
+    "id": "seed-10",
+    "person": "sam.ortiz",
+    "agent": "checkout-helper",
+    "app": "ops-console",
+    "flow": "mcp",
+    "event": "user_prompt",
+    "direction": "in",
+    "category": "",
+    "rule": "",
+    "decision": "allow",
+    "observed": "sanitize",
+    "observedRule": "cst-ticket-ref",
+    "observedCategory": "pii",
+    "ageH": 9.7
+   },
+   {
+    "id": "seed-11",
+    "person": "sam.ortiz",
+    "agent": "code-assistant",
+    "app": "docs-bot",
+    "flow": "a2a",
+    "event": "tool_call",
+    "direction": "out",
+    "category": "schema_violation",
+    "rule": "schema-bad-tool-call",
+    "decision": "sanitize",
+    "observed": "",
+    "observedRule": "",
+    "observedCategory": "",
+    "ageH": 40.7
+   },
+   {
+    "id": "seed-12",
+    "person": "sam.ortiz",
+    "agent": "research-agent",
+    "app": "docs-bot",
+    "flow": "coding_agent",
+    "event": "tool_result",
+    "direction": "in",
+    "category": "indirect_injection",
+    "rule": "inj-ignore-previous",
+    "decision": "block",
+    "observed": "",
+    "observedRule": "",
+    "observedCategory": "",
+    "ageH": 388.4
+   },
+   {
+    "id": "seed-13",
+    "person": "priya.nair",
+    "agent": "checkout-helper",
+    "app": "storefront-web",
+    "flow": "llm",
+    "event": "user_prompt",
+    "direction": "in",
+    "category": "secrets",
+    "rule": "lab-openai-style-key",
+    "decision": "block",
+    "observed": "",
+    "observedRule": "",
+    "observedCategory": "",
+    "ageH": 4.9
+   },
+   {
+    "id": "seed-14",
+    "person": "priya.nair",
+    "agent": "code-assistant",
+    "app": "storefront-web",
+    "flow": "mcp",
+    "event": "user_prompt",
+    "direction": "in",
+    "category": "pii",
+    "rule": "pii-email",
+    "decision": "alert",
+    "observed": "",
+    "observedRule": "",
+    "observedCategory": "",
+    "ageH": 38.8
+   },
+   {
+    "id": "seed-15",
+    "person": "priya.nair",
+    "agent": "research-agent",
+    "app": "ops-console",
+    "flow": "a2a",
+    "event": "user_prompt",
+    "direction": "in",
+    "category": "jailbreak",
+    "rule": "jb-no-restrictions",
+    "decision": "block",
+    "observed": "",
+    "observedRule": "",
+    "observedCategory": "",
+    "ageH": 295.6
+   },
+   {
+    "id": "seed-16",
+    "person": "priya.nair",
+    "agent": "checkout-helper",
+    "app": "ops-console",
+    "flow": "coding_agent",
+    "event": "user_prompt",
+    "direction": "in",
+    "category": "data_exfiltration",
+    "rule": "exf-send-to-url",
+    "decision": "sanitize",
+    "observed": "",
+    "observedRule": "",
+    "observedCategory": "",
+    "ageH": 8.7
+   },
+   {
+    "id": "seed-17",
+    "person": "alex.ng",
+    "agent": "code-assistant",
+    "app": "docs-bot",
+    "flow": "llm",
+    "event": "tool_call",
+    "direction": "out",
+    "category": "tool_abuse",
+    "rule": "ta-recursive-delete",
+    "decision": "block",
+    "observed": "",
+    "observedRule": "",
+    "observedCategory": "",
+    "ageH": 81.4
+   },
+   {
+    "id": "seed-18",
+    "person": "alex.ng",
+    "agent": "research-agent",
+    "app": "docs-bot",
+    "flow": "mcp",
+    "event": "user_prompt",
+    "direction": "in",
+    "category": "hidden_instructions",
+    "rule": "hid-invisible-characters",
+    "decision": "sanitize",
+    "observed": "",
+    "observedRule": "",
+    "observedCategory": "",
+    "ageH": 183.5
+   },
+   {
+    "id": "seed-19",
+    "person": "alex.ng",
+    "agent": "checkout-helper",
+    "app": "storefront-web",
+    "flow": "a2a",
+    "event": "user_prompt",
+    "direction": "in",
+    "category": "pii",
+    "rule": "pii-credit-card",
+    "decision": "sanitize",
+    "observed": "",
+    "observedRule": "",
+    "observedCategory": "",
+    "ageH": 2.6
+   },
+   {
+    "id": "seed-20",
+    "person": "alex.ng",
+    "agent": "code-assistant",
+    "app": "storefront-web",
+    "flow": "coding_agent",
+    "event": "user_prompt",
+    "direction": "in",
+    "category": "",
+    "rule": "",
+    "decision": "allow",
+    "observed": "sanitize",
+    "observedRule": "cst-ticket-ref",
+    "observedCategory": "pii",
+    "ageH": 150.3
+   },
+   {
+    "id": "seed-21",
+    "person": "sam.ortiz",
+    "agent": "research-agent",
+    "app": "ops-console",
+    "flow": "llm",
+    "event": "user_prompt",
+    "direction": "in",
+    "category": "",
+    "rule": "",
+    "decision": "allow",
+    "observed": "",
+    "observedRule": "",
+    "observedCategory": "",
+    "ageH": 715.6
+   },
+   {
+    "id": "seed-22",
+    "person": "sam.ortiz",
+    "agent": "checkout-helper",
+    "app": "ops-console",
+    "flow": "mcp",
+    "event": "memory_write",
+    "direction": "in",
+    "category": "memory_poisoning",
+    "rule": "mp-standing-order",
+    "decision": "sanitize",
+    "observed": "",
+    "observedRule": "",
+    "observedCategory": "",
+    "ageH": 10.7
+   },
+   {
+    "id": "seed-23",
+    "person": "sam.ortiz",
+    "agent": "code-assistant",
+    "app": "docs-bot",
+    "flow": "a2a",
+    "event": "tool_result",
+    "direction": "in",
+    "category": "malicious_content",
+    "rule": "mc-pipe-to-shell",
+    "decision": "block",
+    "observed": "",
+    "observedRule": "",
+    "observedCategory": "",
+    "ageH": 127.2
+   },
+   {
+    "id": "seed-24",
+    "person": "sam.ortiz",
+    "agent": "research-agent",
+    "app": "docs-bot",
+    "flow": "coding_agent",
+    "event": "tool_call",
+    "direction": "out",
+    "category": "schema_violation",
+    "rule": "schema-bad-tool-call",
+    "decision": "sanitize",
+    "observed": "",
+    "observedRule": "",
+    "observedCategory": "",
+    "ageH": 186.5
+   },
+   {
+    "id": "seed-25",
+    "person": "priya.nair",
+    "agent": "checkout-helper",
+    "app": "storefront-web",
+    "flow": "llm",
+    "event": "tool_result",
+    "direction": "in",
+    "category": "indirect_injection",
+    "rule": "inj-ignore-previous",
+    "decision": "block",
+    "observed": "",
+    "observedRule": "",
+    "observedCategory": "",
+    "ageH": 9.9
+   },
+   {
+    "id": "seed-26",
+    "person": "priya.nair",
+    "agent": "code-assistant",
+    "app": "storefront-web",
+    "flow": "mcp",
+    "event": "user_prompt",
+    "direction": "in",
+    "category": "secrets",
+    "rule": "lab-openai-style-key",
+    "decision": "block",
+    "observed": "",
+    "observedRule": "",
+    "observedCategory": "",
+    "ageH": 145.2
+   },
+   {
+    "id": "seed-27",
+    "person": "priya.nair",
+    "agent": "research-agent",
+    "app": "ops-console",
+    "flow": "a2a",
+    "event": "user_prompt",
+    "direction": "in",
+    "category": "prompt_injection",
+    "rule": "inj-ignore-previous",
+    "decision": "sanitize",
+    "observed": "",
+    "observedRule": "",
+    "observedCategory": "",
+    "ageH": 225.8
+   },
+   {
+    "id": "seed-28",
+    "person": "priya.nair",
+    "agent": "checkout-helper",
+    "app": "ops-console",
+    "flow": "coding_agent",
+    "event": "user_prompt",
+    "direction": "in",
+    "category": "pii",
+    "rule": "pii-email",
+    "decision": "alert",
+    "observed": "",
+    "observedRule": "",
+    "observedCategory": "",
+    "ageH": 12.4
+   },
+   {
+    "id": "seed-29",
+    "person": "alex.ng",
+    "agent": "code-assistant",
+    "app": "docs-bot",
+    "flow": "llm",
+    "event": "user_prompt",
+    "direction": "in",
+    "category": "data_exfiltration",
+    "rule": "exf-send-to-url",
+    "decision": "sanitize",
+    "observed": "",
+    "observedRule": "",
+    "observedCategory": "",
+    "ageH": 80.6
+   },
+   {
+    "id": "seed-30",
+    "person": "alex.ng",
+    "agent": "research-agent",
+    "app": "docs-bot",
+    "flow": "mcp",
+    "event": "user_prompt",
+    "direction": "in",
+    "category": "",
+    "rule": "",
+    "decision": "allow",
+    "observed": "sanitize",
+    "observedRule": "cst-ticket-ref",
+    "observedCategory": "pii",
+    "ageH": 383.2
+   },
+   {
+    "id": "seed-31",
+    "person": "alex.ng",
+    "agent": "checkout-helper",
+    "app": "storefront-web",
+    "flow": "a2a",
+    "event": "user_prompt",
+    "direction": "in",
+    "category": "hidden_instructions",
+    "rule": "hid-invisible-characters",
+    "decision": "sanitize",
+    "observed": "",
+    "observedRule": "",
+    "observedCategory": "",
+    "ageH": 2
+   },
+   {
+    "id": "seed-32",
+    "person": "alex.ng",
+    "agent": "code-assistant",
+    "app": "storefront-web",
+    "flow": "coding_agent",
+    "event": "user_prompt",
+    "direction": "in",
+    "category": "pii",
+    "rule": "pii-credit-card",
+    "decision": "sanitize",
+    "observed": "",
+    "observedRule": "",
+    "observedCategory": "",
+    "ageH": 128.9
+   },
+   {
+    "id": "seed-33",
+    "person": "sam.ortiz",
+    "agent": "research-agent",
+    "app": "ops-console",
+    "flow": "llm",
+    "event": "agent_message",
+    "direction": "in",
+    "category": "inter_agent_abuse",
+    "rule": "ia-grant-self",
+    "decision": "block",
+    "observed": "",
+    "observedRule": "",
+    "observedCategory": "",
+    "ageH": 671.6
+   },
+   {
+    "id": "seed-34",
+    "person": "sam.ortiz",
+    "agent": "checkout-helper",
+    "app": "ops-console",
+    "flow": "mcp",
+    "event": "tool_definition",
+    "direction": "in",
+    "category": "tool_poisoning",
+    "rule": "tp-important-block",
+    "decision": "block",
+    "observed": "",
+    "observedRule": "",
+    "observedCategory": "",
+    "ageH": 9.1
+   },
+   {
+    "id": "seed-35",
+    "person": "sam.ortiz",
+    "agent": "code-assistant",
+    "app": "docs-bot",
+    "flow": "a2a",
+    "event": "user_prompt",
+    "direction": "in",
+    "category": "",
+    "rule": "",
+    "decision": "allow",
+    "observed": "",
+    "observedRule": "",
+    "observedCategory": "",
+    "ageH": 114.9
+   },
+   {
+    "id": "seed-36",
+    "person": "sam.ortiz",
+    "agent": "research-agent",
+    "app": "docs-bot",
+    "flow": "coding_agent",
+    "event": "tool_result",
+    "direction": "in",
+    "category": "malicious_content",
+    "rule": "mc-pipe-to-shell",
+    "decision": "block",
+    "observed": "",
+    "observedRule": "",
+    "observedCategory": "",
+    "ageH": 200.1
+   },
+   {
+    "id": "seed-37",
+    "person": "priya.nair",
+    "agent": "checkout-helper",
+    "app": "storefront-web",
+    "flow": "llm",
+    "event": "tool_call",
+    "direction": "out",
+    "category": "schema_violation",
+    "rule": "schema-bad-tool-call",
+    "decision": "sanitize",
+    "observed": "",
+    "observedRule": "",
+    "observedCategory": "",
+    "ageH": 12.9
+   },
+   {
+    "id": "seed-38",
+    "person": "priya.nair",
+    "agent": "code-assistant",
+    "app": "storefront-web",
+    "flow": "mcp",
+    "event": "tool_result",
+    "direction": "in",
+    "category": "indirect_injection",
+    "rule": "inj-ignore-previous",
+    "decision": "block",
+    "observed": "",
+    "observedRule": "",
+    "observedCategory": "",
+    "ageH": 44.3
+   },
+   {
+    "id": "seed-39",
+    "person": "priya.nair",
+    "agent": "research-agent",
+    "app": "ops-console",
+    "flow": "a2a",
+    "event": "user_prompt",
+    "direction": "in",
+    "category": "secrets",
+    "rule": "lab-openai-style-key",
+    "decision": "block",
+    "observed": "",
+    "observedRule": "",
+    "observedCategory": "",
+    "ageH": 397.9
+   },
+   {
+    "id": "seed-40",
+    "person": "priya.nair",
+    "agent": "checkout-helper",
+    "app": "ops-console",
+    "flow": "coding_agent",
+    "event": "user_prompt",
+    "direction": "in",
+    "category": "",
+    "rule": "",
+    "decision": "allow",
+    "observed": "sanitize",
+    "observedRule": "cst-ticket-ref",
+    "observedCategory": "pii",
+    "ageH": 5.7
+   }
+  ]
+ },
+ "rules": {
+  "good": {
+   "Added": [
+    {
+     "ID": "cst-acme-token",
+     "Description": "An Acme service token",
+     "Category": "secrets",
+     "Severity": "high",
+     "Score": 0.75,
+     "OWASP": "",
+     "AppliesTo": [],
+     "Keywords": [
+      "acme_"
+     ],
+     "Pattern": "acme_[a-z0-9]{20}",
+     "Entropy": 3,
+     "Allowlist": [
+      "^acme_example"
+     ],
+     "ValueGroup": 0
+    },
+    {
+     "ID": "cst-staff-ref",
+     "Description": "A staff reference number",
+     "Category": "pii",
+     "Severity": "medium",
+     "Score": 0.5,
+     "OWASP": "",
+     "AppliesTo": [],
+     "Keywords": [
+      "stf-"
+     ],
+     "Pattern": "STF-[0-9]{6}",
+     "Entropy": 0,
+     "Allowlist": [],
+     "ValueGroup": 0
+    }
+   ],
+   "Errors": []
+  },
+  "one-bad": {
+   "Added": [],
+   "Errors": [
+    "rule 2 (nested-quantifier): regex refused: nested quantifiers (a repeated group that already repeats)",
+    "rule 3 (lookahead): regex refused: lookahead or lookbehind"
+   ]
+  },
+  "redos": {
+   "Added": [],
+   "Errors": [
+    "rule 1 (catastrophic): regex refused: nested quantifiers (a repeated group that already repeats)"
+   ]
+  }
+ },
+ "kinds": {
+  "pii-ssn": {
+   "valid": true,
+   "nearMiss": false
+  },
+  "pii-ca-sin": {
+   "valid": true,
+   "nearMiss": false
+  },
+  "pii-es-dni": {
+   "valid": true,
+   "nearMiss": false
+  },
+  "pii-uk-nino": {
+   "valid": true,
+   "nearMiss": false
+  },
+  "pii-credit-card": {
+   "valid": true,
+   "nearMiss": false
+  },
+  "pii-iban": {
+   "valid": true,
+   "nearMiss": false
+  },
+  "pii-aba-routing": {
+   "valid": true,
+   "nearMiss": false
+  },
+  "pii-health-id": {
+   "valid": true,
+   "nearMiss": false
+  },
+  "pii-dob": {
+   "valid": true,
+   "nearMiss": false
+  },
+  "pii-email": {
+   "valid": true,
+   "nearMiss": false
+  },
+  "pii-phone": {
+   "valid": true,
+   "nearMiss": false
+  }
+ },
+ "secrets": {
+  "lab-aws-access-key-id": {
+   "valid": true,
+   "nearMiss": false
+  },
+  "lab-github-token": {
+   "valid": true,
+   "nearMiss": false
+  },
+  "lab-github-fine-grained": {
+   "valid": true,
+   "nearMiss": false
+  },
+  "lab-slack-token": {
+   "valid": true,
+   "nearMiss": false
+  },
+  "lab-payment-secret-key": {
+   "valid": true,
+   "nearMiss": false
+  },
+  "lab-private-key-block": {
+   "valid": true,
+   "nearMiss": false
+  },
+  "lab-jwt": {
+   "valid": true,
+   "nearMiss": false
+  },
+  "lab-google-api-key": {
+   "valid": true,
+   "nearMiss": false
+  },
+  "lab-npm-token": {
+   "valid": true,
+   "nearMiss": false
+  },
+  "lab-mail-api-key": {
+   "valid": true,
+   "nearMiss": false
+  },
+  "lab-sms-api-key": {
+   "valid": true,
+   "nearMiss": false
+  },
+  "lab-url-password": {
+   "valid": true,
+   "nearMiss": false
+  },
+  "lab-bearer-token": {
+   "valid": true,
+   "nearMiss": false
+  },
+  "lab-generic-assignment": {
+   "valid": true,
+   "nearMiss": false
+  },
+  "lab-openai-style-key": {
+   "valid": true,
+   "nearMiss": false
+  }
+ }
+}

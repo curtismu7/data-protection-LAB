@@ -1,0 +1,137 @@
+{
+  "schema": "diagram-studio/1",
+  "id": "sealed-prompt",
+  "title": "Prompts sealed to a key only you hold",
+  "lede": "The gateway seals each record to your public key. Metadata stays in the clear so you can find a record; the content opens only in your browser, with a private key you supply at that moment. The sealing format is the lab's own. Ping release claim, UNVERIFIED on our tenant. Simulated.",
+  "groups": {
+    "client": {
+      "label": "Traffic",
+      "color": "dark"
+    },
+    "gateway": {
+      "label": "Gateway (P1 Privilege Agent App)",
+      "color": "red"
+    },
+    "store": {
+      "label": "Store",
+      "color": "grey"
+    },
+    "you": {
+      "label": "You",
+      "color": "blue"
+    }
+  },
+  "nodes": [
+    {
+      "id": "agent",
+      "label": "Agent or client",
+      "group": "client",
+      "x": 0,
+      "y": 180
+    },
+    {
+      "id": "gw",
+      "label": "P1 Privilege Agent App seals each record",
+      "group": "gateway",
+      "x": 320,
+      "y": 180
+    },
+    {
+      "id": "store",
+      "label": "Record store: ciphertext and clear metadata",
+      "group": "store",
+      "x": 640,
+      "y": 180
+    },
+    {
+      "id": "console",
+      "label": "Agent Insights page in your browser",
+      "group": "you",
+      "x": 640,
+      "y": 420
+    },
+    {
+      "id": "key",
+      "label": "Your private key (stays in your browser)",
+      "group": "you",
+      "x": 320,
+      "y": 420
+    }
+  ],
+  "edges": [
+    {
+      "source": "agent",
+      "target": "gw",
+      "label": "prompt and response"
+    },
+    {
+      "source": "key",
+      "target": "gw",
+      "label": "public key only"
+    },
+    {
+      "source": "gw",
+      "target": "store",
+      "label": "sealed record"
+    },
+    {
+      "source": "store",
+      "target": "console",
+      "label": "clear metadata, sealed content"
+    },
+    {
+      "source": "key",
+      "target": "console",
+      "label": "private key, entered here"
+    },
+    {
+      "source": "console",
+      "target": "key",
+      "label": "plaintext shown here only"
+    }
+  ],
+  "steps": [
+    {
+      "title": "Traffic",
+      "what": "A prompt (and a response, if IncludeResponses is on) passes the gateway.",
+      "edges": [
+        0
+      ]
+    },
+    {
+      "title": "Only the public half",
+      "what": "You make a key pair in the browser and give the gateway the public half as PublicKey. Without it nothing is recorded.",
+      "edges": [
+        1
+      ]
+    },
+    {
+      "title": "Seal and store",
+      "what": "The gateway makes an ephemeral key, does ECDH with your public key, derives an AES-GCM key with HKDF and stores only ciphertext plus the clear metadata.",
+      "edges": [
+        2
+      ]
+    },
+    {
+      "title": "Find the record",
+      "what": "You search who, which agent, which application, what was detected and what was decided. All clear text; nothing is decrypted.",
+      "edges": [
+        3
+      ]
+    },
+    {
+      "title": "Bring your key",
+      "what": "You paste or load the private key into the page at the moment you open one record.",
+      "edges": [
+        4
+      ]
+    },
+    {
+      "title": "Decrypt in the browser",
+      "what": "WebCrypto opens that one record. The server never sees the key or the plaintext; a record you never open is never decrypted anywhere.",
+      "edges": [
+        5
+      ]
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "demos": [
+    {
+      "id": "data-protection-lab",
+      "name": "Data Protection LAB",
+      "kind": "Demo",
+      "description": "AIGuard content inspection in and out with graduated outcomes, your own gitleaks-format rules (one bad rule refuses the whole paste), personal-data kinds with checksums, Agent Insights, the OWASP Agentic Top 10 as qualified, and prompt logging sealed to a key made in your browser: a simulation of the 2026-11-02 Ping release claims. Mock tables, or a Live local engine with real sealing. Every product claim is UNVERIFIED on our tenant.",
+      "url": "http://localhost:7200",
+      "healthPath": "/api/health",
+      "composeFile": "data-protection-LAB/docker-compose.yml",
+      "composeOverlays": [],
+      "notes": "Host-run: ./scripts/run.sh (port 7200). Docker: HOST_PORT=7200 docker compose up --build -d (published on 127.0.0.1 only). Mock and Live are both loopback-only with zero outbound calls; the private key never leaves the browser. No catalog id yet (placeholder D0 in the content pack)."
+    }
+  ]
+}

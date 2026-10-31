@@ -1,0 +1,4 @@
+{
+  "_readme": "Copy to customer.config.json (git-ignored) to brand the lab. Only these three cast values are read; everything else is ignored. agentId is the person's account name (lowercase letters, digits, dots and dashes); host is one label and becomes <host>.example. Overrides the chosen vertical's values. The personal data in the stories is synthetic and is not configurable.",
+  "cast": { "brand": "Fabrikam Bank", "agentId": "maya.chen", "host": "fabrikam" }
+}
