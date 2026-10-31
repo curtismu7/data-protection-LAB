@@ -13,13 +13,13 @@ test('the files the standalone rules ask for are present', () => {
   }
 });
 
-test('the shelf entry is valid and portable: relative composeFile, loopback url, health path, no catalog id', () => {
+test('the shelf entry is valid and portable: relative composeFile, loopback url, health path, catalog id D103', () => {
   const e = JSON.parse(read('docs/shelf-entry.json')).demos[0];
   assert.equal(e.id, 'data-protection-lab');
   assert.equal(e.kind, 'Demo');
   assert.equal(e.healthPath, '/api/health');
   assert.match(e.url, /^http:\/\/localhost:72\d\d$/);
-  assert.ok(!('catalogId' in e), 'no catalog id until the owner assigns one');
+  assert.equal(e.catalogId, 'D103', 'catalog id assigned 2026-10-31 (owner delegated the choice)');
   assert.equal(e.composeFile, 'data-protection-LAB/docker-compose.yml');
   assert.ok(!path.isAbsolute(e.composeFile), 'composeFile must be relative or a placeholder');
   assert.ok(!/\/Users\//.test(JSON.stringify(e)), 'no absolute home path');

@@ -9,7 +9,8 @@
       "healthPath": "/api/health",
       "composeFile": "data-protection-LAB/docker-compose.yml",
       "composeOverlays": [],
-      "notes": "Host-run: ./scripts/run.sh (port 7200). Docker: HOST_PORT=7200 docker compose up --build -d (published on 127.0.0.1 only). Mock and Live are both loopback-only with zero outbound calls; the private key never leaves the browser. No catalog id yet (placeholder D0 in the content pack)."
+      "notes": "Host-run: ./scripts/run.sh (port 7200). Docker: HOST_PORT=7200 docker compose up --build -d (published on 127.0.0.1 only). Mock and Live are both loopback-only with zero outbound calls; the private key never leaves the browser. No catalog id yet (placeholder D0 in the content pack).",
+      "catalogId": "D103"
     }
   ]
 }

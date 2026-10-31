@@ -24,7 +24,7 @@ export function buildPack() {
     id: 'data-protection-lab',
     title: 'Data Protection LAB',
     version,
-    demo: { id: 'data-protection-lab', name: 'Data Protection LAB', catalog: 'D0', baseUrl: 'http://localhost:7200', doctor: '/api/health', tags: ['aiguard', 'data-protection', 'prompt-logging', 'agent-insights', 'owasp-agentic', 'gitleaks', 'simulated'] },
+    demo: { id: 'data-protection-lab', name: 'Data Protection LAB', catalog: 'D103', baseUrl: 'http://localhost:7200', doctor: '/api/health', tags: ['aiguard', 'data-protection', 'prompt-logging', 'agent-insights', 'owasp-agentic', 'gitleaks', 'simulated'] },
     glossary: [
       { id: 'aiguard', term: 'AIGuard', definition: `Content inspection in and out across MCP, A2A, LLM and coding-agent traffic, for the attacks identity controls cannot see. In this lab: the lab's own deterministic stand-in. ${UNV}`, aliases: ['content inspection'] },
       { id: 'graduated-response', term: 'Graduated response', definition: `Four outcomes per policy: allow, alert, sanitize or block, with thresholds per category and overrides per key or per application. A threshold of 0 turns that outcome off. ${UNV}`, aliases: ['thresholds'] },

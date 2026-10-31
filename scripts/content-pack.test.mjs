@@ -7,9 +7,9 @@ import { validatePack } from './validate-content-pack.mjs';
 const root = new URL('..', import.meta.url);
 const committed = JSON.parse(fs.readFileSync(new URL('content-pack.json', root), 'utf8'));
 
-test('the pack validates against the schema and its cross-references hold, with the placeholder catalog D0', () => {
+test('the pack validates against the schema and its cross-references hold, with the assigned catalog D103', () => {
   assert.deepEqual(validatePack(buildPack()), []);
-  assert.equal(buildPack().demo.catalog, 'D0');
+  assert.equal(buildPack().demo.catalog, 'D103');
   assert.equal(buildPack().schema, 'demo-content-pack/1');
 });
 
