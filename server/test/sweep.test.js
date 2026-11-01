@@ -474,7 +474,10 @@ const ALONE = [
   ['JWT shape', j('ey', 'Jabcde.', 'ey', 'Jabcde.abcde'), j('ey', 'Jabcde')], ['sk- prefix', j('s', 'k-aaaa1111'), 'aaaa1111'], ['sk_live_ prefix', j('s', 'k_live_aaaa1111'), 'aaaa1111'], ['pk_test_ prefix', j('p', 'k_test_aaaa1111'), 'aaaa1111'],
   ['ghp_ prefix', j('gh', 'p_aaaa1111'), 'aaaa1111'], ['github_pat_ prefix', j('github', '_pat_aaaa1111'), 'aaaa1111'], ['xoxb- prefix', j('xo', 'xb-aaaa1111'), 'aaaa1111'], ['npm_ prefix', j('np', 'm_aaaa1111'), 'aaaa1111'], ['AKIA prefix', j('AK', 'IAAAAAAAAAAAAAA'), 'IAAAAAAAAAAAAAA'],
   ['private-key block body', j('-----BEGIN ', 'PRIVATE', ' KEY-----\nzzzz22\n-----END PRIVATE KEY-----'), 'zzzz22'],
+  ['private-key header with a soft hyphen and a zero-width space', j('-----BEGIN ', 'PRIV\u00adATE', ' K\u200bEY-----\nzzzz22\n-----END PRIVATE KEY-----'), 'zzzz22'],
   ['private-key header split by a control', j('-----BEGIN ', 'PRIV\u0001ATE', ' KEY-----\nzzzz22\n-----END PRIVATE KEY-----'), 'zzzz22'],
+  ['password := value', 'password := aaaa11', 'aaaa11'], ['password == value', 'password == aaaa11', 'aaaa11'], ['150 spaces between', 'password' + ' '.repeat(150) + 'aaaa11', 'aaaa11'], ['1000 spaces between', 'password' + ' '.repeat(1000) + 'aaaa11', 'aaaa11'], ['a newline and indent (YAML)', 'password:\n    aaaa11', 'aaaa11'],
+  ['control inside the value', 'password: aaa\u0001a11', 'aaaa11'], ['fullwidth colon', 'password： aaaa11', 'aaaa11'], ['non-breaking space', 'password\u00a0aaaa11', 'aaaa11'],
   ['percent-encoded', 'password%3Daaaa11', 'aaaa11'], ['backslash-escaped', 'p\\u0061ssword=aaaa11', 'aaaa11'], ['plus for space', 'password+is+aaaa11', 'aaaa11'], ['tab inside the keyword', 'pass\tword=aaaa11', 'aaaa11'],
 ];
 test('unit: every credential-shape detector masks on its own (the value is one no other detector recognises)', () => {

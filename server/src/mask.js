@@ -69,20 +69,20 @@ const DETECTORS = [
   // URL userinfo: scheme://user:pw@host (the whole userinfo goes)
   [/(?<=:\/\/)[^\s/?#@\uE001]{1,200}(?=@)/g, () => PH],
   // header lines run to the end of the line
-  [/\b(authorization|proxy-authorization|set-cookie|cookie)(\s{0,20}[:=]\s{0,20})([^\s][^\r\n]{0,299})/gi, (m, k, sep, v) => (done(v) ? m : `${k}${sep}${PH}`), 3],
+  [/\b(authorization|proxy-authorization|set-cookie|cookie)(\s{0,200}[:=]\s{0,200})([^\s][^\r\n]{0,299})/gi, (m, k, sep, v) => (done(v) ? m : `${k}${sep}${PH}`), 3],
   // keyword assignment: password=x, "password":"x", my_password: x, apiKey => x (any value; the name may carry a short suffix)
-  [new RegExp(`(${PW}|(?<![A-Za-z])(?:${PW_SHORT})|${SEC})(s?[\\w-]{0,30}["']?\\s{0,20}(?:=>|->|[:=])\\s{0,20})(${VALUE})`, 'gi'), (m, k, sep, v) => (done(v) ? m : `${k}${sep}${PH}`), 3],
+  [new RegExp(`(${PW}|(?<![A-Za-z])(?:${PW_SHORT})|${SEC})(s?[\\w-]{0,30}["']?\\s{0,200}(?:=>|->|:=|==|[:=])\\s{0,200})(${VALUE})`, 'gi'), (m, k, sep, v) => (done(v) ? m : `${k}${sep}${PH}`), 3],
   // the weak keywords only when the separator follows at once AND the value is six or more characters with a digit (no "author: Bob", no "keyboard: us",
   // no "key:key-refunds": the engine's own scope strings are written that way)
-  [new RegExp(`((?<![A-Za-z])(?:${WEAK}))(["']?\\s{0,20}(?:=>|->|[:=])\\s{0,20})(${VALUE})`, 'gi'), (m, k, sep, v) => (v.length >= 6 && hasDigit(v) && !done(v) ? `${k}${sep}${PH}` : m), 3],
+  [new RegExp(`((?<![A-Za-z])(?:${WEAK}))(["']?\\s{0,200}(?:=>|->|:=|==|[:=])\\s{0,200})(${VALUE})`, 'gi'), (m, k, sep, v) => (v.length >= 6 && hasDigit(v) && !done(v) ? `${k}${sep}${PH}` : m), 3],
   // plain language: "my password is x", "the key is x", "token was x"
-  [new RegExp(`(${PW}|(?<![A-Za-z])(?:${PW_SHORT})|${SEC}|(?<![A-Za-z])keys?)(s?\\s{1,20}(?:is|was|are)\\s{1,20})(${VALUE})`, 'gi'), (m, k, sep, v) => {
+  [new RegExp(`(${PW}|(?<![A-Za-z])(?:${PW_SHORT})|${SEC}|(?<![A-Za-z])keys?)(s?\\s{1,200}(?:is|was|are)\\s{1,200})(${VALUE})`, 'gi'), (m, k, sep, v) => {
     const isPw = new RegExp(`^(?:${PW}|${PW_SHORT})$`, 'i').test(k);
     const ok = !done(v) && (isPw ? v.length >= 4 && !plainWord(v) : v.length >= 4 && (hasDigit(v) || (v.length >= 8 && mixedCase(v))));
     return ok ? `${k}${sep}${PH}` : m;
   }, 3],
   // keyword, whitespace, then a token of six or more characters that has a digit: "password hunter2xyz", "pw hunter2xyz", "api key hunter2xyz"
-  [new RegExp(`(${PW}|(?<![A-Za-z])(?:${PW_SHORT})|${SEC})(s?\\s{1,20})([^\\s,;&}\\])"']{6,300})`, 'gi'), (m, k, sep, v) => (hasDigit(v) ? `${k}${sep}${PH}` : m), 3],
+  [new RegExp(`(${PW}|(?<![A-Za-z])(?:${PW_SHORT})|${SEC})(s?\\s{1,200})(["']?[^\\s,;&}\\])"']{6,300}["']?)`, 'gi'), (m, k, sep, v) => (hasDigit(v) ? `${k}${sep}${PH}` : m), 3],
   // user:password@host with no scheme ("//bob:pw@host", "bob:pw@host"); a "mailto:" address is left alone
   [/(?<![\w.%+-])(?!mailto:)[\w.%+-]{1,200}:[^\s/?#@:\uE001]{1,200}(?=@[A-Za-z0-9[])/gi, () => PH],
   [/\b(bearer|basic)(\s{1,5})([A-Za-z0-9._~+/=-]{6,})/gi, (m, k, sep, v) => (hasDigit(v) || mixedCase(v) || v.length >= 20 ? `${k}${sep}${PH}` : m), 3],
@@ -136,8 +136,8 @@ export function shapeSpans(text) {
 
 // One marker-free piece of text. Nothing found: the text as typed, controls deleted. Something found: the cleaned, decoded text with it masked.
 function shapesIn(piece) {
-  let s = flat(piece);
-  for (let i = 0; i < 3; i++) { const d = flat(decodeOnce(s)); if (d === s) break; s = d; }
+  let s = flat(piece).replace(/\s{50,}/g, ' '); // a long run of white space is one space here (the keyword gaps below are at most 200 characters)
+  for (let i = 0; i < 3; i++) { const d = flat(decodeOnce(s)).replace(/\s{50,}/g, ' '); if (d === s) break; s = d; }
   let out = detect(s);
   for (const [re, to] of SECOND_LOOKS) { const changed = out.replace(re, to); const again = detect(changed); if (again !== changed) out = again; }
   return out === s ? deleteControls(piece) : out.replaceAll(PH, MARK);
@@ -154,7 +154,10 @@ export const PEM_BLOCK = /-----BEGIN [A-Z0-9 ]{0,40}PRIVATE KEY(?: BLOCK)?-----[
 const KEEP = /\[(?:masked(?: for display)?|REDACTED):[A-Za-z0-9_.-]{1,60}\]/g;
 const KEPT = /\uE001([\uE100-\uF5FF])/g;
 export function maskText(input) {
-  let text = deleteControls(String(input)).replace(PEM_BLOCK, '[masked:lab-private-key-block]');
+  let text = deleteControls(String(input));
+  // a private-key block is found even when zero-width or format characters are woven into its header; then the text is shown without them
+  const bare = text.replace(STRIP, ''); const block = bare.replace(PEM_BLOCK, '[masked:lab-private-key-block]');
+  text = block !== bare ? block : text.replace(PEM_BLOCK, '[masked:lab-private-key-block]');
   if (!text) return text;
   const kept = [];
   text = text.replace(KEEP, (m) => (kept.length < 5000 ? `\uE001${String.fromCharCode(0xe100 + kept.push(m) - 1)}` : m));
