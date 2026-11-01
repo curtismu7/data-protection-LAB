@@ -26,6 +26,15 @@ test('no source file builds a regular expression from visitor input, evals, or w
     const code = fs.readFileSync(new URL(f, dir), 'utf8').split('\n').filter((l) => !/^\s*\/\//.test(l)).join('\n');
     assert.ok(!/\beval\(|new Function\(|\bvm\./.test(code), `${f}: no eval, Function or vm`);
     assert.ok(!/writeFile|appendFile|createWriteStream|mkdirSync|rmSync|unlinkSync/.test(code), `${f}: the server writes no file`);
-    if (!['regexChild.js', 'toml.js'].includes(f)) assert.ok(!/new RegExp\(/.test(code.replace(/new RegExp\(d\.pattern|new RegExp\(a, 'i'\)|new RegExp\(re, 'g'\)/g, '')), `${f}: no regular expression is built at run time here`);
+    // mask.js builds its detectors once, at load, from constant keyword lists; the interpolations are pinned below.
+    if (!['regexChild.js', 'toml.js', 'mask.js'].includes(f)) assert.ok(!/new RegExp\(/.test(code.replace(/new RegExp\(d\.pattern|new RegExp\(a, 'i'\)|new RegExp\(re, 'g'\)/g, '')), `${f}: no regular expression is built at run time here`);
   }
+});
+
+test('mask.js builds regular expressions only from its own constant keyword lists, never from a value', () => {
+  const code = fs.readFileSync(new URL('../src/mask.js', import.meta.url), 'utf8').split('\n').filter((l) => !/^\s*\/\//.test(l)).join('\n');
+  const used = [...code.matchAll(/new RegExp\(`([^`]*)`/g)].flatMap((m) => [...m[1].matchAll(/\$\{([^}]*)\}/g)].map((x) => x[1]));
+  assert.ok(used.length > 5, 'the detectors are built from template strings');
+  for (const name of used) assert.ok(['PW', 'PW_SHORT', 'SEC', 'WEAK', 'VALUE'].includes(name), `interpolates ${name}`);
+  assert.ok(!/new RegExp\((?!`|re\.source)/.test(code), 'every other new RegExp( takes a template of constants (or the detector\'s own source)');
 });

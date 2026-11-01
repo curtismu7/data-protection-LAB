@@ -7,9 +7,7 @@ import { parseToml, TOML_LIMITS } from './toml.js';
 import { checkRegex, splitInlineFlags } from './safeRegex.js';
 import { CATEGORY_IDS, SURFACES, isCategory } from './categories.js';
 import { cleanText } from './safety.js';
-import { maskText } from './mask.js';
-
-const safeName = (n) => (/^[A-Za-z_][A-Za-z0-9_.-]{0,29}$/.test(n) && maskText(n) === n ? n : '(name hidden)');
+import { looksLikeCredentialId, maskText } from './mask.js';
 import { RegexTimeout, sharedRunner } from './regexRunner.js';
 
 export const RULE_LIMITS = { rulesPerWorkspace: 50, keywords: 20, keywordLength: 40, allowlist: 10, description: 200, id: 64 };
@@ -24,9 +22,9 @@ const isStrArray = (v, max) => Array.isArray(v) && v.length <= max && v.every((x
 // Field checks that need no regular expression. Returns { problems, rule } where rule is the swagger-shaped rule when problems is empty.
 function buildRule(raw, n) {
   const f = raw.fields; const problems = [...raw.errors];
-  for (const k of Object.keys(f)) if (!KNOWN.includes(k)) problems.push(`unknown key ${safeName(k)}`);
+  for (const k of Object.keys(f)) if (!KNOWN.includes(k)) problems.push('an unknown key');
   if (typeof f.id !== 'string' || !ID.test(f.id.toLowerCase())) problems.push('id is required: lowercase letters, digits and dashes, up to 64');
-  else if (maskText(`cst-${f.id.toLowerCase()}`) !== `cst-${f.id.toLowerCase()}`) problems.push('id looks like personal data or a secret: choose a plain name');
+  else if (looksLikeCredentialId(f.id.toLowerCase()) || looksLikeCredentialId(`cst-${f.id.toLowerCase()}`)) problems.push('id looks like personal data or a secret: choose a plain name');
   if (typeof f.regex !== 'string') problems.push('regex is required (a string)');
   if (f.description !== undefined && (typeof f.description !== 'string' || f.description.length > RULE_LIMITS.description)) problems.push(`description must be text up to ${RULE_LIMITS.description} characters`);
   if (f.keywords !== undefined && (!isStrArray(f.keywords, RULE_LIMITS.keywords) || f.keywords.some((k) => !k || k.length > RULE_LIMITS.keywordLength))) problems.push(`keywords must be up to ${RULE_LIMITS.keywords} short strings`);
@@ -40,15 +38,33 @@ function buildRule(raw, n) {
   if (f.tags !== undefined && !isStrArray(f.tags, 20)) problems.push('tags must be a list of strings');
   const a = raw.allowlist;
   if (a) {
-    for (const k of Object.keys(a)) if (k !== 'regexes' && k !== 'description') problems.push(`allowlist key ${safeName(k)} is not supported (only regexes)`);
+    for (const k of Object.keys(a)) if (k !== 'regexes' && k !== 'description') problems.push('an allowlist key other than regexes is not supported');
     if (a.regexes !== undefined && !isStrArray(a.regexes, RULE_LIMITS.allowlist)) problems.push(`allowlist regexes must be up to ${RULE_LIMITS.allowlist} strings`);
   }
-  const label = typeof f.id === 'string' && ID.test(f.id.toLowerCase()) && maskText(f.id) === f.id ? f.id : '(id hidden)';
-  return { n, label, problems, f, allow: a?.regexes || [] };
+  return { n, problems, f, allow: a?.regexes || [] };
+}
+
+// The paste echoed back (the swagger Toml field): only [[rules]] and [rules.allowlist] headers and the known key names are shown as typed; any other
+// table or key name is hidden (a bare word cannot be recognised as a secret, so a name nobody asked for is not repeated), and then every value is
+// masked as text. A rejected paste is echoed the same way.
+const KNOWN_KEYS = new Set([...KNOWN, 'regexes', 'title']);
+export function echoToml(toml) {
+  if (typeof toml !== 'string') return '';
+  const lines = maskText(toml).split('\n').map((line) => { // values first (a keyword may sit in a name, a block may start in a table header)
+    if (/^\s*\[/.test(line)) return /^\s*(?:\[\[rules\]\]|\[rules\.allowlist\])\s*(?:#.*)?$/.test(line) ? line : '[masked:table]';
+    const m = /^(\s*)([A-Za-z0-9_-]+)(\s*=)/.exec(line);
+    if (m && !KNOWN_KEYS.has(m[2])) return `${m[1]}[masked:key] = [masked:value]`; // name and value both: the keyword may be in the name
+    // a rule id is repeated only when it is exactly a quoted plain id that does not look like a credential
+    const id = /^(\s*id\s*=\s*)(.*)$/.exec(line);
+    if (!id) return line;
+    const plain = /^(?:"([A-Za-z0-9-]{1,64})"|'([A-Za-z0-9-]{1,64})')\s*(?:#.*)?$/.exec(id[2]);
+    return plain && !looksLikeCredentialId((plain[1] ?? plain[2]).toLowerCase()) ? line : `${id[1]}"[masked:id]"`;
+  });
+  return lines.join('\n');
 }
 
 export async function importToml(toml, { existingIds = [], existingCount = 0, runner = sharedRunner, owner } = {}) {
-  const out = { Toml: typeof toml === 'string' ? toml : '', Added: [], Errors: [] };
+  const out = { Toml: echoToml(toml), Added: [], Errors: [] };
   const parsed = parseToml(toml);
   for (const e of parsed.errors) out.Errors.push(e);
   if (!parsed.rules.length && !out.Errors.length) out.Errors.push('no [[rules]] found in the paste');
@@ -80,15 +96,15 @@ export async function importToml(toml, { existingIds = [], existingCount = 0, ru
   }
   for (const b of built) {
     if (b.f.secretGroup !== undefined && b.groups !== undefined && b.f.secretGroup > b.groups) b.problems.push('secretGroup is higher than the number of groups in the regex');
-    if (b.problems.length) out.Errors.push(`rule ${b.n} (${b.label}): ${[...new Set(b.problems)].join('; ')}`);
+    if (b.problems.length) out.Errors.push(`rule ${b.n}: ${[...new Set(b.problems)].join('; ')}`);
   }
   if (out.Errors.length) return out; // the whole paste is refused: nothing is added
   out.Added = built.map((b) => {
     const f = b.f; const sp = splitInlineFlags(f.regex);
     const severity = f.severity ?? 'high';
     return {
-      ID: b.id, Description: cleanText(f.description ?? '', RULE_LIMITS.description), Category: f.category ?? 'secrets', Severity: severity,
-      Score: f.score ?? SEVERITY_SCORE[severity], OWASP: cleanText(f.owasp ?? '', 40), AppliesTo: f.appliesTo ?? [], Keywords: (f.keywords ?? []).map((k) => k.toLowerCase()),
+      ID: b.id, Description: cleanText(maskText(f.description ?? ''), 2 * RULE_LIMITS.description), Category: f.category ?? 'secrets', Severity: severity,
+      Score: f.score ?? SEVERITY_SCORE[severity], OWASP: cleanText(maskText(f.owasp ?? ''), 80), AppliesTo: f.appliesTo ?? [], Keywords: (f.keywords ?? []).map((k) => k.toLowerCase()),
       Pattern: f.regex, Entropy: f.entropy ?? 0, Allowlist: b.allow, ValueGroup: f.secretGroup ?? 0, _flags: sp.flags,
     };
   }).map(({ _flags, ...rule }) => rule);

@@ -52,7 +52,7 @@ export const SECRET_DETECTORS = [
     sample: () => j('Bear', 'er ', filler(32, 'bt')), nearMiss: () => j('Bear', 'er ', 'a'.repeat(32)) },
   { id: 'lab-generic-assignment', description: 'A secret-looking name assigned a high-entropy value (api_key=, secret:, token=, password=)', keywords: ['key', 'secret', 'token', 'passw', 'pwd'], pattern: '\\b(?:api[_-]?key|secret|token|passw(?:or)?d|pwd)\\s*[:=]\\s*["\']?([A-Za-z0-9/+=_-]{12,80})["\']?', flags: 'i', entropy: 3.2, allowlist: ['^(?:your|example|changeme|placeholder|xxx|\\$\\{)'], valueGroup: 1, score: 0.75,
     sample: () => j('api_', 'key = "', filler(30, 'ga'), '"'), nearMiss: () => j('api_', 'key = "', 'your_api_key_goes_here', '"') },
-  { id: 'lab-openai-style-key', description: 'sk- style API key (the labelled sk-MOCK- value is the only one this lab ever shows)', keywords: ['sk-'], pattern: '\\bsk-(?=[A-Za-z0-9_-]*\\d)[A-Za-z0-9_-]{20,}', flags: '', entropy: 3, allowlist: [], valueGroup: 0, score: 0.9,
+  { id: 'lab-openai-style-key', description: 'sk- style API key (the labelled sk-MOCK- value is the only one this lab ever shows)', keywords: ['sk-'], pattern: '\\bsk-(?=[A-Za-z0-9_-]{0,200}\\d)[A-Za-z0-9_-]{20,}', flags: '', entropy: 3, allowlist: [], valueGroup: 0, score: 0.9,
     sample: () => j('sk', '-', filler(40, 'oa')), nearMiss: () => j('sk', '-', 'abc') },
 ];
 export const SECRET_COUNT_IN_DECK = 364; // the deck's figure, shown next to the lab set and never implied to be it

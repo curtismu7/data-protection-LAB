@@ -3192,14 +3192,14 @@
   "one-bad": {
    "Added": [],
    "Errors": [
-    "rule 2 (nested-quantifier): regex refused: nested quantifiers (a repeated group that already repeats)",
-    "rule 3 (lookahead): regex refused: lookahead or lookbehind"
+    "rule 2: regex refused: nested quantifiers (a repeated group that already repeats)",
+    "rule 3: regex refused: lookahead or lookbehind"
    ]
   },
   "redos": {
    "Added": [],
    "Errors": [
-    "rule 1 (catastrophic): regex refused: nested quantifiers (a repeated group that already repeats)"
+    "rule 1: regex refused: nested quantifiers (a repeated group that already repeats)"
    ]
   }
  },

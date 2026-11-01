@@ -2,6 +2,7 @@
 // evaluations (metadata only, never the text), the sealed prompt records (ciphertext and clear metadata: the server holds no private key),
 // the prompt-log settings and the pasted rules. All bounded in count and age. The browser sends its id in X-Workspace (default "default").
 import { defaultPromptLog } from './promptlog.js';
+import { looksLikeCredentialId } from './mask.js';
 
 export const WORKSPACE_RE = /^[a-z0-9-]{1,40}$/;
 export const DEFAULT_WORKSPACE = 'default';
@@ -12,7 +13,8 @@ export const MAX_RULES = 50;
 export function workspaceFrom(req) {
   const raw = req.headers['x-workspace'];
   if (raw === undefined) return DEFAULT_WORKSPACE;
-  return typeof raw === 'string' && WORKSPACE_RE.test(raw) ? raw : null;
+  // A credential-looking id (24+ hex characters, sk-..., pw-..., a long random run) is refused like a malformed one, and never echoed.
+  return typeof raw === 'string' && WORKSPACE_RE.test(raw) && !looksLikeCredentialId(raw) ? raw : null;
 }
 
 export function createWorkspaces({ max = 500, ttlMs = 60 * 60 * 1000, now = Date.now } = {}) {

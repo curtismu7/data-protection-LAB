@@ -93,8 +93,8 @@ test('limits: more than 50 rules, duplicate keys, too many keys, unsupported tab
   assert.match(parseToml('[[rules]]\nid = "a"\nid = "b"\n').rules[0].errors[0], /set twice/);
   const keys = Array.from({ length: 25 }, (_, i) => `k${i} = 1`).join('\n');
   assert.match(parseToml(`[[rules]]\n${keys}\n`).rules[0].errors[0], /too many keys/);
-  assert.match(parseToml('[extend]\nuseDefault = true\n').errors[0], /table \[extend\] is not supported/);
-  assert.match(parseToml('x = 1\n').errors[0], /top-level key x is not supported/);
+  assert.match(parseToml('[extend]\nuseDefault = true\n').errors[0], /this table is not supported/);
+  assert.match(parseToml('x = 1\n').errors[0], /this top-level key is not supported/);
   assert.match(parseToml('[[rules]]\nid = "a"\n[[rules.allowlists]]\nregexes = []\n').rules[0].errors[0], /not supported/);
   assert.match(parseToml('[rules.allowlist]\nregexes = []\n').errors.concat(parseToml('[rules.allowlist]\n').rules.flatMap((r) => r.errors))[0] || '', /before any/);
 });

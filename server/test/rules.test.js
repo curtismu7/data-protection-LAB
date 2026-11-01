@@ -26,8 +26,8 @@ test('ONE bad rule refuses the WHOLE paste: nothing is added and Errors lists ea
   const r = await imp(RULE_SAMPLES[1].toml);
   assert.deepEqual(r.Added, []);
   assert.equal(r.Errors.length, 2);
-  assert.match(r.Errors[0], /^rule 2 \(nested-quantifier\): regex refused: nested quantifiers/);
-  assert.match(r.Errors[1], /^rule 3 \(lookahead\): regex refused: lookahead or lookbehind/);
+  assert.match(r.Errors[0], /^rule 2: regex refused: nested quantifiers/);
+  assert.match(r.Errors[1], /^rule 3: regex refused: lookahead or lookbehind/);
   assert.ok(r.Errors.every((e) => !e.includes('\n')), 'one line each');
   // the good rule alone IS accepted: it is the bad neighbours that sank the paste
   assert.equal((await imp(rule("regex = 'ref-[0-9]{6}'", 'good-one'))).Added.length, 1);
@@ -58,7 +58,7 @@ test('every refusal is tested for its own message', async () => {
   assert.match(await msg(rule("regex = 'a+'\nsecretGroup = 3")), /secretGroup is higher than the number of groups/);
   assert.match(await msg(rule("regex = 'a'\nentropy = 9")), /entropy must be a number from 0 to 8/);
   assert.match(await msg(rule("regex = 'a'\nscore = 2")), /score must be/);
-  assert.match(await msg(rule("regex = 'a'\nunknownthing = 2")), /unknown key unknownthing/);
+  assert.match(await msg(rule("regex = 'a'\nunknownthing = 2")), /^rule 1: an unknown key$/);
   assert.match(await msg(`${rule("regex = 'a'")}[rules.allowlist]\nregexes = ["(x+)+"]\n`), /allowlist regex 1 refused: nested/);
 });
 

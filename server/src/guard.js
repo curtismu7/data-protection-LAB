@@ -7,7 +7,7 @@ import { PII_KIND_IDS, PII_KINDS, detectPii, piiKind } from './pii.js';
 import { detectSecrets } from './secrets.js';
 import { splitInlineFlags } from './safeRegex.js';
 import { shannon } from './secrets.js';
-import { maskText } from './mask.js';
+import { looksLikeCredentialId, maskText, shapeSpans } from './mask.js';
 import { RUNNER_LIMITS, RegexTimeout, sharedRunner } from './regexRunner.js';
 import { InputError } from './errors.js';
 import { mapSpan, normalise } from './normalize.js';
@@ -78,7 +78,17 @@ export function builtinFindings(text, { role, piiKinds }) {
   for (const f of schemaFindings(text, role)) out.push({ ...f, source: 'builtin' });
   // Every kind is always FOUND (so its value is always masked in the display copy); PIIKinds only decides which ones are SCORED.
   for (const f of detectPii(text, null)) out.push({ id: f.kind, category: 'pii', score: piiKind(f.kind).score, start: f.start, end: f.end, source: 'pii', filtered: piiKinds.length > 0 && !piiKinds.includes(f.kind) });
-  for (const f of detectSecrets(text)) out.push({ id: f.rule, category: 'secrets', score: f.score, start: f.start, end: f.end, source: 'secret' });
+  // What a person WRITES around a secret ("password hunter2xyz", user:pw@host, {"password":"x"}) is masked in the display copy and in a split stream,
+  // but it is not a finding: it adds no category, no score and no decision. The detectors above stay the only thing that is scored.
+  for (const s of shapeSpans(text)) out.push({ id: s.id, category: 'secrets', score: 0, start: s.start, end: s.end, source: 'extra', extra: true, shape: true });
+  for (const f of detectSecrets(text)) {
+    out.push({ id: f.rule, category: 'secrets', score: f.score, start: f.start, end: f.end, source: 'secret' });
+    // The detector finds the PEM header; the body after it is the secret, so it is masked in the display copy too (not scored, not a finding).
+    if (f.rule === 'lab-private-key-block') {
+      const body = /^[\s\S]{0,4000}?(?:-----END [A-Z0-9 ]{0,40}PRIVATE KEY(?: BLOCK)?-----|$)/.exec(text.slice(f.end));
+      if (body && body[0].length) out.push({ id: 'private-key-body', category: 'secrets', score: 0, start: f.end, end: f.end + body[0].length, source: 'extra', extra: true });
+    }
+  }
   return out;
 }
 
@@ -119,12 +129,13 @@ function checkOverrides(map, name, errors) {
   if (!isObj(map)) { errors.push({ field: name, message: 'must be an object' }); return out; }
   const ids = Object.keys(map);
   if (ids.length > GUARD_LIMITS.keys) { errors.push({ field: name, message: `at most ${GUARD_LIMITS.keys} entries` }); return out; }
-  for (const id of ids) {
-    if (!ID.test(id) || maskText(id) !== id) { errors.push({ field: name, message: 'ids are plain names: lowercase letters, digits and dashes, not something that looks like personal data or a secret' }); continue; }
-    const o = map[id]; if (!isObj(o)) { errors.push({ field: `${name}.${id}`, message: 'must be an object' }); continue; }
+  for (const [i, id] of ids.entries()) {
+    const at = `${name}[${i + 1}]`; // the position, never the id the visitor typed
+    if (!ID.test(id) || looksLikeCredentialId(id)) { errors.push({ field: name, message: 'ids are plain names: lowercase letters, digits and dashes, not something that looks like personal data or a secret' }); continue; }
+    const o = map[id]; if (!isObj(o)) { errors.push({ field: at, message: 'must be an object' }); continue; }
     const e = {};
-    if (Object.hasOwn(o, 'Categories')) e.Categories = checkCategories(o.Categories, `${name}.${id}.`, errors);
-    if (Object.hasOwn(o, 'PIIKinds')) e.PIIKinds = checkKinds(o.PIIKinds, `${name}.${id}.`, errors);
+    if (Object.hasOwn(o, 'Categories')) e.Categories = checkCategories(o.Categories, `${at}.`, errors);
+    if (Object.hasOwn(o, 'PIIKinds')) e.PIIKinds = checkKinds(o.PIIKinds, `${at}.`, errors);
     out[id] = e;
   }
   return out;
@@ -238,7 +249,7 @@ export async function inspect(text, ctx) {
     observed, text: maskText(shown.text), redactedSpans: shown.redacted, ruleErrors: custom.errors, length: text.length,
   };
   // Every span any detector found (offsets only), for the stream's split-value masking. Not part of the JSON.
-  Object.defineProperty(result, 'spans', { value: all.filter((f) => !f.extra).map((f) => ({ start: f.start, end: f.end, id: f.id })), enumerable: false });
+  Object.defineProperty(result, 'spans', { value: all.filter((f) => !f.extra || f.shape).map((f) => ({ start: f.start, end: f.end, id: f.id, shape: !!f.shape })), enumerable: false });
   return result;
 }
 
@@ -262,7 +273,9 @@ export async function inspectStream(frames, ctx) {
       const straddle = joined.findings.filter((f) => !f.observe && f.start < tail.length && f.end > tail.length);
       const tier = straddle.reduce((d, f) => (TIER_RANK[f.tier] > TIER_RANK[d] ? f.tier : d), 'allow');
       if (TIER_RANK[tier] > TIER_RANK[decision]) { decision = tier === 'alert' ? 'alert' : 'block'; note = 'a value split across this frame and the ones before'; }
-      for (const sp of joined.spans.filter((x) => x.start < tail.length && x.end > tail.length)) {
+      // A value split across frames is masked wherever it falls. A credential-shape span ("password" then its value) is masked from the first frame that
+      // holds any of it, even when only its value sits in this frame and the keyword sits in the tail.
+      for (const sp of joined.spans.filter((x) => x.end > tail.length && (x.shape || x.start < tail.length))) {
         for (let k = sp.start; k < sp.end; k++) { if (k < tail.length) extras[origin[k][0]].add(origin[k][1]); else extras[i].add(k - tail.length); }
       }
     }

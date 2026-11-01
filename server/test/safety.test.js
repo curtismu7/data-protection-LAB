@@ -39,7 +39,8 @@ test('key scan: only sk-MOCK- values are allowed in shipped text', () => {
 });
 
 test('cleanText strips control and bidi characters and caps the length', () => {
-  assert.equal(cleanText('a\u0000b\nc‮d', 80), 'a b c d');
+  assert.equal(cleanText('a\u0000b\nc‮d', 80), 'ab cd', 'controls are deleted (a word cannot hide behind them), newline is a space, bidi marks are dropped');
+  assert.equal(cleanText('p\u0001a\u0085s\u007fs', 80), 'pass'); assert.equal(cleanText('a\tb\r\nc', 80), 'a b  c');
   assert.equal(cleanText('x'.repeat(100), 10).length, 10);
   assert.equal(cleanText(undefined), '');
 });

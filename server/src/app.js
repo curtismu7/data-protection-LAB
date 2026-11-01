@@ -12,6 +12,7 @@ import { defaultMode, modeOf } from './config.js';
 import { buildStory } from './story.js';
 import { DIAGRAM_NAMES, buildDiagram } from './diagramData.js';
 import { InputError } from './errors.js';
+import { maskDeep } from './mask.js';
 import { MOCK_TABLE } from './mockTable.js';
 import { createWorkspaces, workspaceFrom } from './workspaces.js';
 import { validatePolicy } from './guard.js';
@@ -23,6 +24,12 @@ const HERE = path.dirname(fileURLToPath(import.meta.url));
 const WEB_DIST = process.env.WEB_DIST || path.resolve(HERE, '../../web/dist');
 const CONFIG = process.env.CUSTOMER_CONFIG || path.resolve(HERE, '../../customer.config.json');
 const BIG = new Set(['/evaluate', '/stream', '/rules/import']);
+// Every known API route and the methods it answers. Any other method on one of them is 405 with an Allow header (never a 404 or an HTML page).
+const ROUTES = { '/story': ['GET'], '/diagram': ['GET'], '/info': ['GET'], '/selfcheck': ['GET'], '/evaluate': ['POST'], '/stream': ['POST'], '/rules': ['GET'], '/rules/import': ['POST'], '/rules/enforcement': ['POST'],
+  '/promptlog': ['GET'], '/promptlog/config': ['POST'], '/insights': ['GET'], '/reset': ['POST'] };
+// Static, scripted answers: the story shows the labelled sk-MOCK- credential on purpose (rule 4), so these are the only answers not passed through the response mask.
+const UNMASKED = new Set(['/story', '/diagram', '/info', '/selfcheck']);
+const SPA_FREE = (p) => !p.includes('.') && !/^\/api(?:\/|$)/i.test(p); // the page shell is served for extension-less, non-dotfile paths only
 
 export function createApp({ health = createHealth(), configFile = CONFIG, workspaces = createWorkspaces(), table = MOCK_TABLE, runner = sharedRunner } = {}) {
   const app = express();
@@ -34,6 +41,8 @@ export function createApp({ health = createHealth(), configFile = CONFIG, worksp
   const api = express.Router();
   // 20000 characters can be 120 KB once JSON-escaped; a rule paste is up to 65536 characters.
   api.use((req, res, next) => express.json({ limit: BIG.has(req.path) ? '400kb' : '32kb' })(req, res, next));
+  // Defence in depth: every other answer passes through the response mask, so a credential-shaped value cannot leave in any field or object KEY.
+  api.use((req, res, next) => { if (!UNMASKED.has(req.path) && !req.path.startsWith('/health')) { const send = res.json.bind(res); res.json = (b) => send(maskDeep(b)); } next(); });
   api.use('/health', health.router);
   const verticalOf = (req) => verticalFrom(req.body?.vertical ?? req.query.vertical);
   const castFor = (req) => loadCast(configFile, verticalOf(req));
@@ -120,21 +129,34 @@ export function createApp({ health = createHealth(), configFile = CONFIG, worksp
 
   // Reset clears this workspace's events, sealed records, prompt-log settings and pasted rules only.
   api.post('/reset', (req, res) => { const id = ws(req, res); if (!id) return; noStore(res); workspaces.reset(id); runner.cancel?.(id); return res.json({ reset: 'ok', workspace: id }); });
+  for (const [route, methods] of Object.entries(ROUTES)) {
+    api.all(route, (_req, res) => res.set('Allow', methods.includes('GET') ? 'GET, HEAD' : methods.join(', ')).status(405).json({ error: 'method_not_allowed' }));
+  }
   api.use((_req, res) => res.status(404).json({ error: 'not_found' }));
   app.use('/api', api);
-  // Errors become short JSON. Express's default handler would send an HTML stack trace with absolute file paths.
-  // eslint-disable-next-line no-unused-vars
-  app.use((err, _req, res, _next) => {
-    const status = Number(err?.status || err?.statusCode);
-    if (status === 413) return res.status(413).json({ error: 'payload_too_large' });
-    if (status >= 400 && status < 500) return res.status(status).json({ error: 'bad_request' });
-    return res.status(500).json({ error: 'internal_error' });
-  });
-
   if (fs.existsSync(path.join(WEB_DIST, 'index.html'))) {
     app.use(express.static(WEB_DIST));
-    app.get(/^\/(?!api\/).*/, (_req, res) => res.sendFile(path.join(WEB_DIST, 'index.html')));
+    app.use((req, res, next) => {
+      if (req.method !== 'GET' && req.method !== 'HEAD') return next();
+      let p; try { p = decodeURIComponent(req.path); } catch { return next(); }
+      return SPA_FREE(p) ? res.sendFile(path.join(WEB_DIST, 'index.html')) : next();
+    });
   }
+  // Last: a JSON 404 (Express's default page would echo the path), a 405 for a write to the page itself, and one catch-all error handler. Errors become
+  // short JSON with fixed text: Express's default handler would send an HTML stack trace with absolute file paths and the request path.
+  app.use((req, res) => {
+    if (req.path === '/' && req.method !== 'GET' && req.method !== 'HEAD') return res.set('Allow', 'GET, HEAD').status(405).json({ error: 'method_not_allowed' });
+    return res.status(404).json({ error: 'not_found' });
+  });
+  // eslint-disable-next-line no-unused-vars
+  app.use((err, _req, res, next) => {
+    if (res.headersSent) return next(err);
+    const status = Number(err?.status || err?.statusCode);
+    if (status === 413) return res.status(413).json({ error: 'payload_too_large' });
+    if (status === 404) return res.status(404).json({ error: 'not_found' });
+    if (status >= 400 && status < 500) return res.status(400).json({ error: 'bad_request' });
+    return res.status(500).json({ error: 'internal_error' });
+  });
   return app;
 }
 

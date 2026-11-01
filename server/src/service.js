@@ -3,7 +3,7 @@
 import { randomBytes } from 'node:crypto';
 import { InputError } from './errors.js';
 import { cleanText } from './safety.js';
-import { maskSpans, maskText } from './mask.js';
+import { looksLikeCredentialId, maskSpans, maskText } from './mask.js';
 import { formatTraceparent, newTrace } from './trace.js';
 import { GUARD_LIMITS, defaultPolicy, inspect, inspectStream } from './guard.js';
 import { isRole, isSurface, roleDirection } from './categories.js';
@@ -25,7 +25,7 @@ async function maskFull(text, { rules, runner, owner, quarantine }) {
   for (let i = 0; i < t.length; i += GUARD_LIMITS.text) {
     const chunk = t.slice(i, i + GUARD_LIMITS.text);
     const r = await inspect(chunk, { role: 'user_prompt', surface: 'llm', policy: defaultPolicy(), rules, runner, owner, quarantine });
-    out += maskSpans(chunk, r.findings.filter((f) => f.source !== 'builtin').map((f) => ({ start: f.start, end: f.end, id: f.rule })));
+    out += maskSpans(chunk, r.findings.filter((f) => f.source === 'custom').map((f) => ({ start: f.start, end: f.end, id: f.rule })));
   }
   return maskText(out);
 }
@@ -42,12 +42,18 @@ async function maskDeepFull(value, ctx) {
   for (const [dst, key, text] of leaves) dst[key] = await maskFull(text, ctx);
   return root.v;
 }
-const labelOf = async (v, fallback, ctx) => (typeof v !== 'string' || !v.trim() ? fallback : (await maskFull(cleanText(v, 40), ctx)) || fallback);
+// A label is refused WHOLE when it is over 40 characters (never cut), then masked as typed (so a keyword split by controls is still seen) and then cleaned.
+export const LABEL_MAX = 40;
+const labelOf = async (v, fallback, ctx) => {
+  if (typeof v !== 'string' || !v.trim()) return fallback;
+  if (v.length > LABEL_MAX) throw new InputError('bad_label', `a label is at most ${LABEL_MAX} characters`);
+  return cleanText(await maskFull(v, ctx), 200) || fallback;
+};
 const scopeOf = (s) => {
   if (s === undefined) return {};
   if (s === null || typeof s !== 'object' || Array.isArray(s)) throw new InputError('bad_scope', 'scope must be an object');
   const out = {};
-  for (const k of ['key', 'app']) if (s[k] !== undefined && s[k] !== '') { if (typeof s[k] !== 'string' || !ID.test(s[k]) || maskText(s[k]) !== s[k]) throw new InputError('bad_scope', `${k} must be a plain id: lowercase letters, digits and dashes, and not something that looks like personal data or a secret`); out[k] = s[k]; }
+  for (const k of ['key', 'app']) if (s[k] !== undefined && s[k] !== '') { if (typeof s[k] !== 'string' || !ID.test(s[k]) || looksLikeCredentialId(s[k])) throw new InputError('bad_scope', `${k} must be a plain id: lowercase letters, digits and dashes, and not something that looks like personal data or a secret`); out[k] = s[k]; }
   return out;
 };
 const hopper = (trace) => { const hops = []; return { hops, add: (label, request, response) => hops.push({ n: hops.length + 1, label, request: { ...request, headers: { traceparent: formatTraceparent(trace.traceId, trace.span()), ...(request.headers || {}) } }, response }) }; };
