@@ -59,34 +59,38 @@ const WEAK = 'pass|auth|authorization|cookie|signature|keys?';
 // Words that follow "password is" in ordinary prose and are never a value.
 const PLAIN = new Set('a an the and or of to for in on at by as if is was are were be not no with from this that it its can will must should may has have had does do did but so than then when where which who how what used using required invalid incorrect wrong correct expired valid missing empty short long weak strong hashed stored encrypted set reset changed ok okay fine secure safe private public needed mandatory optional blank unknown unset lost forgotten hidden here there now too very case sensitive manager policy rules rule field form'.split(' '));
 const VALUE = '"[^"]{0,300}"|\'[^\']{0,300}\'|\\{[^}]{0,300}\\}|\\[[^\\]]{0,300}\\]|[^\\s,;&}\\])]{1,300}';
+// A value that is only a marker set aside by maskText is already masked: the detectors leave it, so masking twice changes nothing.
+const done = (v) => /^\uE001[\uE100-\uF5FF]$/.test(v);
 const plainWord = (v) => PLAIN.has(v.toLowerCase().replace(/[^a-z]/g, '')) && !hasDigit(v);
 
+// While the detectors run, a mask is a private-use placeholder, so a later detector can never read an earlier one's marker as text; it is swapped for MARK at the end.
+const PH = '\uE000';
 const DETECTORS = [
   // URL userinfo: scheme://user:pw@host (the whole userinfo goes)
-  [/(?<=:\/\/)[^\s/?#@]{1,200}(?=@)/g, () => MARK],
+  [/(?<=:\/\/)[^\s/?#@\uE001]{1,200}(?=@)/g, () => PH],
   // header lines run to the end of the line
-  [/\b(authorization|proxy-authorization|set-cookie|cookie)(\s{0,20}[:=]\s{0,20})([^\s][^\r\n]{0,299})/gi, (m, k, sep) => `${k}${sep}${MARK}`, 3],
+  [/\b(authorization|proxy-authorization|set-cookie|cookie)(\s{0,20}[:=]\s{0,20})([^\s][^\r\n]{0,299})/gi, (m, k, sep, v) => (done(v) ? m : `${k}${sep}${PH}`), 3],
   // keyword assignment: password=x, "password":"x", my_password: x, apiKey => x (any value; the name may carry a short suffix)
-  [new RegExp(`(${PW}|(?<![A-Za-z])(?:${PW_SHORT})|${SEC})(s?[\\w-]{0,30}["']?\\s{0,20}(?:=>|->|[:=])\\s{0,20})(${VALUE})`, 'gi'), (m, k, sep) => `${k}${sep}${MARK}`, 3],
+  [new RegExp(`(${PW}|(?<![A-Za-z])(?:${PW_SHORT})|${SEC})(s?[\\w-]{0,30}["']?\\s{0,20}(?:=>|->|[:=])\\s{0,20})(${VALUE})`, 'gi'), (m, k, sep, v) => (done(v) ? m : `${k}${sep}${PH}`), 3],
   // the weak keywords only when the separator follows at once AND the value is six or more characters with a digit (no "author: Bob", no "keyboard: us",
   // no "key:key-refunds": the engine's own scope strings are written that way)
-  [new RegExp(`((?<![A-Za-z])(?:${WEAK}))(["']?\\s{0,20}(?:=>|->|[:=])\\s{0,20})(${VALUE})`, 'gi'), (m, k, sep, v) => (v.length >= 6 && hasDigit(v) ? `${k}${sep}${MARK}` : m), 3],
+  [new RegExp(`((?<![A-Za-z])(?:${WEAK}))(["']?\\s{0,20}(?:=>|->|[:=])\\s{0,20})(${VALUE})`, 'gi'), (m, k, sep, v) => (v.length >= 6 && hasDigit(v) && !done(v) ? `${k}${sep}${PH}` : m), 3],
   // plain language: "my password is x", "the key is x", "token was x"
   [new RegExp(`(${PW}|(?<![A-Za-z])(?:${PW_SHORT})|${SEC}|(?<![A-Za-z])keys?)(s?\\s{1,20}(?:is|was|are)\\s{1,20})(${VALUE})`, 'gi'), (m, k, sep, v) => {
     const isPw = new RegExp(`^(?:${PW}|${PW_SHORT})$`, 'i').test(k);
-    const ok = isPw ? v.length >= 4 && !plainWord(v) : v.length >= 4 && (hasDigit(v) || (v.length >= 8 && mixedCase(v)));
-    return ok ? `${k}${sep}${MARK}` : m;
+    const ok = !done(v) && (isPw ? v.length >= 4 && !plainWord(v) : v.length >= 4 && (hasDigit(v) || (v.length >= 8 && mixedCase(v))));
+    return ok ? `${k}${sep}${PH}` : m;
   }, 3],
   // keyword, whitespace, then a token of six or more characters that has a digit: "password hunter2xyz", "pw hunter2xyz", "api key hunter2xyz"
-  [new RegExp(`(${PW}|(?<![A-Za-z])(?:${PW_SHORT})|${SEC})(s?\\s{1,20})([^\\s,;&}\\])"']{6,300})`, 'gi'), (m, k, sep, v) => (hasDigit(v) ? `${k}${sep}${MARK}` : m), 3],
+  [new RegExp(`(${PW}|(?<![A-Za-z])(?:${PW_SHORT})|${SEC})(s?\\s{1,20})([^\\s,;&}\\])"']{6,300})`, 'gi'), (m, k, sep, v) => (hasDigit(v) ? `${k}${sep}${PH}` : m), 3],
   // user:password@host with no scheme ("//bob:pw@host", "bob:pw@host"); a "mailto:" address is left alone
-  [/(?<![\w.%+-])(?!mailto:)[\w.%+-]{1,200}:[^\s/?#@:]{1,200}(?=@[A-Za-z0-9[])/gi, () => MARK],
-  [/\b(bearer|basic)(\s{1,5})([A-Za-z0-9._~+/=-]{6,})/gi, (m, k, sep, v) => (hasDigit(v) || mixedCase(v) || v.length >= 20 ? `${k}${sep}${MARK}` : m), 3],
-  [/\beyJ[\w-]{5,}\.[\w-]{5,}\.[\w-]*/g, () => MARK],
-  [/\b(?:sk|pk|rk)-(?=[A-Za-z0-9_-]{0,200}\d)[A-Za-z0-9_-]{8,}/g, () => MARK],
-  [/\b[spr]k_(?:live|test)_[A-Za-z0-9]{8,}/g, () => MARK],
-  [/\b(?:gh[pousr]_[A-Za-z0-9]{6,}|github_pat_[A-Za-z0-9_]{6,}|glpat-[A-Za-z0-9_-]{6,}|xox[abeprs]-[A-Za-z0-9-]{6,}|npm_[A-Za-z0-9]{6,}|AIza[0-9A-Za-z_-]{16,})/g, () => MARK],
-  [/\b(?:AKIA|ASIA)[0-9A-Z]{12,}/g, () => MARK],
+  [/(?<![\w.%+-])(?!mailto:)[\w.%+-]{1,200}:[^\s/?#@:\uE001]{1,200}(?=@[A-Za-z0-9[])/gi, () => PH],
+  [/\b(bearer|basic)(\s{1,5})([A-Za-z0-9._~+/=-]{6,})/gi, (m, k, sep, v) => (hasDigit(v) || mixedCase(v) || v.length >= 20 ? `${k}${sep}${PH}` : m), 3],
+  [/\beyJ[\w-]{5,}\.[\w-]{5,}\.[\w-]*/g, () => PH],
+  [/\b(?:sk|pk|rk)-(?=[A-Za-z0-9_-]{0,200}\d)[A-Za-z0-9_-]{8,}/g, () => PH],
+  [/\b[spr]k_(?:live|test)_[A-Za-z0-9]{8,}/g, () => PH],
+  [/\b(?:gh[pousr]_[A-Za-z0-9]{6,}|github_pat_[A-Za-z0-9_]{6,}|glpat-[A-Za-z0-9_-]{6,}|xox[abeprs]-[A-Za-z0-9-]{6,}|npm_[A-Za-z0-9]{6,}|AIza[0-9A-Za-z_-]{16,})/g, () => PH],
+  [/\b(?:AKIA|ASIA)[0-9A-Z]{12,}/g, () => PH],
 ];
 const detect = (text) => DETECTORS.reduce((acc, [re, fn]) => acc.replace(re, fn), text);
 // A second look at the text with one kind of character changed; kept only when it finds something the first look did not.
@@ -136,7 +140,7 @@ function shapesIn(piece) {
   for (let i = 0; i < 3; i++) { const d = flat(decodeOnce(s)); if (d === s) break; s = d; }
   let out = detect(s);
   for (const [re, to] of SECOND_LOOKS) { const changed = out.replace(re, to); const again = detect(changed); if (again !== changed) out = again; }
-  return out === s ? deleteControls(piece) : out;
+  return out === s ? deleteControls(piece) : out.replaceAll(PH, MARK);
 }
 export function maskShapes(text) {
   if (!text) return text;
@@ -145,11 +149,18 @@ export function maskShapes(text) {
 
 // A private-key block, header to end line (or to the end of the text, or 4000 characters): the body is the secret, not just the header.
 export const PEM_BLOCK = /-----BEGIN [A-Z0-9 ]{0,40}PRIVATE KEY(?: BLOCK)?-----[\s\S]{0,4000}?(?:-----END [A-Z0-9 ]{0,40}PRIVATE KEY(?: BLOCK)?-----|$)/g;
+// A marker already in the text (from an earlier masking, or the visitor's own typing of one) is set aside while the detectors run and put back after: a
+// detector must never read "[masked:lab-url-password]" as a password, or masking twice would mangle it. A marker is two private-use characters here.
+const KEEP = /\[(?:masked(?: for display)?|REDACTED):[A-Za-z0-9_.-]{1,60}\]/g;
+const KEPT = /\uE001([\uE100-\uF5FF])/g;
 export function maskText(input) {
-  const text = deleteControls(String(input)).replace(PEM_BLOCK, '[masked:lab-private-key-block]');
+  let text = deleteControls(String(input)).replace(PEM_BLOCK, '[masked:lab-private-key-block]');
   if (!text) return text;
+  const kept = [];
+  text = text.replace(KEEP, (m) => (kept.length < 5000 ? `\uE001${String.fromCharCode(0xe100 + kept.push(m) - 1)}` : m));
   const spans = [...detectPii(text).map((f) => ({ start: f.start, end: f.end, id: f.kind })), ...detectSecrets(text).map((f) => ({ start: f.start, end: f.end, id: f.rule }))];
-  return maskShapes(maskSpans(text, spans));
+  const out = maskShapes(maskSpans(text, spans));
+  return kept.length ? out.replace(KEPT, (m, c) => kept[c.charCodeAt(0) - 0xe100] ?? m) : out;
 }
 
 // An identifier a visitor chose (workspace, rule, key, app) that is shaped like a credential: a long hex or random-looking run, or a secret prefix.

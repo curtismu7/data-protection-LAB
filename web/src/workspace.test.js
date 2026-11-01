@@ -19,8 +19,8 @@ describe("workspace id", () => {
     try { expect(workspaceId()).toBe("w-1111111111111111"); } finally { window.crypto.getRandomValues = real; }
   });
   it("accepts and refuses the same ids the server does", () => {
-    for (const ok of ["default", "w-0123456789abcdef", "a", "x".repeat(40), "my-tab-1"]) expect(usableWorkspaceId(ok), ok).toBe(true);
-    for (const bad of ["", "x".repeat(41), "0123456789abcdef01234567", "a".repeat(23) + "1a1", "sk-abcdefghij", "pw-hunter2xyz", "Token-1", "UPPER", "has space", "12345", "ghp_abc"]) expect(usableWorkspaceId(bad), bad).toBe(false);
+    for (const ok of ["default", "w-0123456789abcdef", "a", "x".repeat(40), "my-tab-1", "abcdefabcdefabcdefabcde"]) expect(usableWorkspaceId(ok), ok).toBe(true);
+    for (const bad of ["", "x".repeat(41), "0123456789abcdef01234567", "abcdefabcdefabcdefabcdef", "a".repeat(23) + "1a1", "sk-abcdefghij", "pw-hunter2xyz", "Token-1", "UPPER", "has space", "12345", "ghp_abc"]) expect(usableWorkspaceId(bad), bad).toBe(false);
   });
   it("a stored id the server would refuse is replaced before the first call", () => {
     window.sessionStorage.setItem("dp.workspace", "sk-abcdefghijklmnop1234");

@@ -44,21 +44,29 @@ function buildRule(raw, n) {
   return { n, problems, f, allow: a?.regexes || [] };
 }
 
-// The paste echoed back (the swagger Toml field): only [[rules]] and [rules.allowlist] headers and the known key names are shown as typed; any other
-// table or key name is hidden (a bare word cannot be recognised as a secret, so a name nobody asked for is not repeated), and then every value is
-// masked as text. A rejected paste is echoed the same way.
+// The paste echoed back (the swagger Toml field): values are masked as text first (a keyword may sit in a name, a block may start in a table header);
+// then only the structure that was asked for is shown as typed: the [[rules]] and [rules.allowlist] headers, the known key names, a plain rule id,
+// comments and blank lines, and the inside of a multi-line string or array. Any other table, key name or line is hidden, because a bare word cannot be
+// told from a secret. A rejected paste is echoed the same way.
 const KNOWN_KEYS = new Set([...KNOWN, 'regexes', 'title']);
 export function echoToml(toml) {
   if (typeof toml !== 'string') return '';
-  const lines = maskText(toml).split('\n').map((line) => { // values first (a keyword may sit in a name, a block may start in a table header)
+  let inside = null; // the delimiter of an open multi-line string, or ']' for an open array
+  const count = (line, d) => line.split(d).length - 1;
+  const lines = maskText(toml).split('\n').map((line) => {
+    if (inside === "'''" || inside === '"""') { if (count(line, inside) % 2 === 1) inside = null; return line; }
+    if (inside === ']') { if (line.includes(']')) inside = null; return line; }
+    if (/^\s*(?:#.*)?$/.test(line)) return line;
     if (/^\s*\[/.test(line)) return /^\s*(?:\[\[rules\]\]|\[rules\.allowlist\])\s*(?:#.*)?$/.test(line) ? line : '[masked:table]';
-    const m = /^(\s*)([A-Za-z0-9_-]+)(\s*=)/.exec(line);
-    if (m && !KNOWN_KEYS.has(m[2])) return `${m[1]}[masked:key] = [masked:value]`; // name and value both: the keyword may be in the name
+    const m = /^(\s*)([A-Za-z0-9_-]+)(\s*=\s*)(.*)$/.exec(line);
+    if (!m) return '[masked:line]';
+    if (!KNOWN_KEYS.has(m[2])) return `${m[1]}[masked:key] = [masked:value]`; // name and value both: the keyword may be in the name
+    for (const d of ["'''", '"""']) if (count(m[4], d) % 2 === 1) inside = d;
+    if (!inside && /^\[/.test(m[4]) && !m[4].includes(']')) inside = ']';
+    if (m[2] !== 'id') return line;
     // a rule id is repeated only when it is exactly a quoted plain id that does not look like a credential
-    const id = /^(\s*id\s*=\s*)(.*)$/.exec(line);
-    if (!id) return line;
-    const plain = /^(?:"([A-Za-z0-9-]{1,64})"|'([A-Za-z0-9-]{1,64})')\s*(?:#.*)?$/.exec(id[2]);
-    return plain && !looksLikeCredentialId((plain[1] ?? plain[2]).toLowerCase()) ? line : `${id[1]}"[masked:id]"`;
+    const plain = /^(?:"([A-Za-z0-9-]{1,64})"|'([A-Za-z0-9-]{1,64})')\s*(?:#.*)?$/.exec(m[4]);
+    return plain && !looksLikeCredentialId((plain[1] ?? plain[2]).toLowerCase()) ? line : `${m[1]}id = "[masked:id]"`;
   });
   return lines.join('\n');
 }
