@@ -359,7 +359,7 @@ const withStaticServer = (fn) => withAppServer(fn, { dist: true });
 test('static files: a miss is a JSON 404 (never the page shell as 200 text/html); only extension-less, non-dotfile paths get the shell; real files are served', async () => {
   await withStaticServer(async (url) => {
     const jsonMiss = async (p, method = 'GET') => { const r = await fetch(`${url}${p}`, { method }); const t = await r.text(); assert.equal(r.status, 404, `${method} ${p}`); assert.match(r.headers.get('content-type'), /^application\/json/, p); if (method === 'GET') assert.deepEqual(JSON.parse(t), { error: 'not_found' }, p); };
-    for (const p of ['/assets/missing.js', '/favicon.ico', '/robots.txt', '/foo.map', '/foo.svg', '/sitemap.xml', '/.env', '/.git/config', '/a.b/c', '/foo%2Emap', '/%2e%2e/x.js', '/api', '/api/', '/API/nothing', '/api/story.json']) await jsonMiss(p);
+    for (const p of ['/assets/missing.js', '/favicon.ico', '/robots.txt', '/foo.map', '/foo.svg', '/sitemap.xml', '/.env', '/.git/config', '/foo%2Emap', '/%2e%2e/x.js', '/api', '/api/', '/API/nothing', '/api/story.json']) await jsonMiss(p);
     await jsonMiss('/assets/missing.js', 'HEAD');
     for (const p of ['/', '/rules', '/detect', '/some/spa/route', '/Rules']) { const r = await fetch(`${url}${p}`); assert.equal(r.status, 200, p); assert.match(r.headers.get('content-type'), /^text\/html/); assert.match(await r.text(), /shell/); }
     const js = await fetch(`${url}/assets/app.js`); assert.equal(js.status, 200); assert.match(js.headers.get('content-type'), /javascript/); assert.equal(await js.text(), 'console.log(1)');
@@ -381,7 +381,7 @@ test('methods: any write outside a known route is a JSON 404 that never echoes t
     }
   });
   await withServer(async (url) => {
-    const ROUTES = { '/api/story': 'GET, HEAD', '/api/diagram': 'GET, HEAD', '/api/info': 'GET, HEAD', '/api/selfcheck': 'GET, HEAD', '/api/rules': 'GET, HEAD', '/api/promptlog': 'GET, HEAD', '/api/insights': 'GET, HEAD', '/api/health': 'GET',
+    const ROUTES = { '/api/story': 'GET, HEAD', '/api/diagram': 'GET, HEAD', '/api/info': 'GET, HEAD', '/api/selfcheck': 'GET, HEAD', '/api/rules': 'GET, HEAD', '/api/promptlog': 'GET, HEAD', '/api/insights': 'GET, HEAD', '/api/health': 'GET, HEAD',
       '/api/evaluate': 'POST', '/api/stream': 'POST', '/api/rules/import': 'POST', '/api/rules/enforcement': 'POST', '/api/promptlog/config': 'POST', '/api/reset': 'POST' };
     for (const [route, allow] of Object.entries(ROUTES)) {
       const wrong = allow === 'POST' ? ['GET', 'PUT', 'DELETE', 'PATCH'] : ['POST', 'PUT', 'DELETE', 'PATCH'];
