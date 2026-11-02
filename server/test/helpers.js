@@ -55,7 +55,7 @@ export function openSealed(privateJwk, env) {
 export const SHELL = '<!doctype html><html><head><title>shell</title></head><body>shell</body></html>';
 
 // The REAL app module, with a known web folder (dist = true: a page shell, one script and one icon) and, optionally, a workspace store of the test's making.
-export async function withApp(fn, { dist = true, workspaces = createWorkspaces() } = {}) {
+export async function withApp(fn, { dist = true, workspaces = createWorkspaces(), table } = {}) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'dpl-hyg-'));
   if (dist) {
     fs.mkdirSync(path.join(dir, 'assets'));
@@ -67,7 +67,7 @@ export async function withApp(fn, { dist = true, workspaces = createWorkspaces()
   let mod; try { mod = await import(`../src/app.js?hyg=${Date.now()}-${Math.random()}`); } finally { if (prev === undefined) delete process.env.WEB_DIST; else process.env.WEB_DIST = prev; }
   const health = createHealth({ runChecks: async () => [], intervalMs: 3_600_000 }); await health.ready;
   const runner = createRegexRunner();
-  const { server, url } = await mod.startHttpServer({ port: 0, host: '127.0.0.1', app: mod.createApp({ health, configFile: '/nonexistent/customer.config.json', runner, workspaces }) });
+  const { server, url } = await mod.startHttpServer({ port: 0, host: '127.0.0.1', app: mod.createApp({ health, configFile: '/nonexistent/customer.config.json', runner, workspaces, table }) });
   try { await fn(url.replace(/\/$/, ''), workspaces); } finally { health.stop(); await new Promise((r) => server.close(r)); await runner.close(); fs.rmSync(dir, { recursive: true, force: true }); }
 }
 // Everything written to stdout and stderr while fn runs.

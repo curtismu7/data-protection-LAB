@@ -33,11 +33,19 @@ const shared = createMasker({ opaque, pathRules: [{ match: /^facets(?:\.|$)/, ke
 // App detectors over a text: the marked text. Offsets are those of the text it is given.
 const appSpans = (text) => [...detectPii(text).map((f) => ({ start: f.start, end: f.end, id: f.kind })), ...detectSecrets(text).map((f) => ({ start: f.start, end: f.end, id: f.rule }))];
 
+// The display marks this app writes itself ([masked for display:<detector>], [REDACTED:<category>]) are not marks the shared masker knows: next to a keyword
+// ("password=[masked for display:x]") it would read "[masked" as a value. They are written as shared marks ([masked:d-<id>], [masked:r-<id>]) while the shared
+// masker runs and restored afterwards. No shared detector id starts with "d-" or "r-".
+const SHOWN = /\[(masked for display|REDACTED):([A-Za-z0-9_.-]{1,60})\]/g;
+const HELD = /\[masked:([dr])-([A-Za-z0-9_.-]{1,60})\]/g;
+const hold = (t) => t.replace(SHOWN, (_m, kind, id) => `[masked:${kind === 'REDACTED' ? 'r' : 'd'}-${id}]`);
+const release = (t) => t.replace(HELD, (_m, k, id) => (k === 'r' ? `[REDACTED:${id}]` : `[masked for display:${id}]`));
+
 // The shared mask first (it sees the whole private-key block and every credential shape), then the app's own detectors over what is left.
 export function maskText(input) {
   if (typeof input !== 'string') return shared.maskText(input);
-  const s = shared.maskText(input);
-  return s ? maskSpans(s, appSpans(s)) : s;
+  const s = shared.maskText(hold(input));
+  return release(s ? maskSpans(s, appSpans(s)) : s);
 }
 
 // An identifier a visitor chose (workspace, rule, key, app) that is shaped like a credential: refused and never echoed. The shared isCredentialId reads the prefix
@@ -79,23 +87,26 @@ export function shapeSpans(text) {
 // nothing is dropped. The input is never changed.
 const put = (obj, key, value) => Object.defineProperty(obj, key, { value, enumerable: true, writable: true, configurable: true });
 const appMask = (text) => maskSpans(text, appSpans(text));
-export function maskDeep(value) {
-  const masked = shared.maskDeep(value);
+function mapDeep(value, onString, onKey) {
   const clone = (x) => (Array.isArray(x) ? [] : x && typeof x === 'object' ? {} : x);
-  const root = { v: clone(masked) };
-  const work = [[masked, root, 'v', '']];
+  const root = { v: clone(value) };
+  const work = [[value, root, 'v', '']];
   while (work.length) {
     const [src, dst, key, path] = work.pop();
-    if (typeof src === 'string') { put(dst, key, path && opaque(key, path) ? src : appMask(src)); continue; }
+    if (typeof src === 'string') { put(dst, key, onString(src, key, path)); continue; }
     if (src === null || typeof src !== 'object') { put(dst, key, src); continue; }
     const copy = clone(src); put(dst, key, copy);
     const used = new Set();
     for (const k of Object.keys(src).reverse()) {
-      let nk = Array.isArray(src) ? k : appMask(k);
-      for (let n = 2; used.has(nk); n++) nk = `${appMask(k)}~${n}`;
+      let nk = Array.isArray(src) ? k : onKey(k);
+      for (let n = 2; used.has(nk); n++) nk = `${onKey(k)}~${n}`;
       used.add(nk);
       work.push([src[k], copy, nk, path ? `${path}.${k}` : k]);
     }
   }
   return root.v;
+}
+export function maskDeep(value) {
+  const masked = shared.maskDeep(mapDeep(value, hold, hold));
+  return mapDeep(masked, (text, key, path) => release(path && opaque(key, path) ? text : appMask(text)), (k) => release(appMask(k)));
 }
