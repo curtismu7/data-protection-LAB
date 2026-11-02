@@ -25,7 +25,10 @@ export function maskSpans(text, spans) {
 // the prompt-log PublicKey (promptlog.js re-serialises a validated X25519 public JWK, never the visitor's text).
 const OPAQUE_PATH = /^(?:traceId|(?:\w+\.)*headers\.traceparent|(?:\w+\.)*envelope\.(?:epk|nonce|ct)|config\.PublicKey)$/;
 const opaque = (_key, path) => OPAQUE_PATH.test(path);
-const shared = createMasker({ opaque });
+// Insights facets are the lists of distinct values the app itself offers as filters (category ids, flows, events, agent and app names that were masked when they were
+// stored). The shared array-pair rule reads a credential-looking word followed by another element as a name and its value (["secrets", "tool_abuse"]), so a list of
+// names is a list, not a set of pairs: key names are not read below "facets", the text inside every value is still masked.
+const shared = createMasker({ opaque, pathRules: [{ match: /^facets(?:\.|$)/, keyMode: 'none' }] });
 
 // App detectors over a text: the marked text. Offsets are those of the text it is given.
 const appSpans = (text) => [...detectPii(text).map((f) => ({ start: f.start, end: f.end, id: f.kind })), ...detectSecrets(text).map((f) => ({ start: f.start, end: f.end, id: f.rule }))];
