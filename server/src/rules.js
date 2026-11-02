@@ -49,18 +49,33 @@ function buildRule(raw, n) {
 // comments and blank lines, and the inside of a multi-line string or array. Any other table, key name or line is hidden, because a bare word cannot be
 // told from a secret. A rejected paste is echoed the same way.
 const KNOWN_KEYS = new Set([...KNOWN, 'regexes', 'title']);
-// A TOML string may spell a character as a backslash escape ("pass\tword"); the shared masker reads text as typed, so a line is also read as the parser would
-// read it, and a line that holds a credential once its escapes are decoded is hidden. The escapes TOML defines for a basic string: \b \t \n \f \r \" \\.
+// A TOML string may spell a character as a backslash escape ("pass\tword"), and the shared masker reads text as typed, so a line is read three ways: as typed, with the
+// escapes TOML defines for a basic string decoded (\b \t \n \f \r \" \\ \uXXXX \UXXXXXXXX), and as the quoted strings it holds (the closing quote right after a keyword hides
+// "enter x as password" from a phrase reader). A line that holds a credential in any of the three is hidden.
 const TOML_ESCAPE = { b: '\b', t: '\t', n: '\n', f: '\f', r: '\r', '"': '"', '\\': '\\' };
-const unescapeToml = (v) => v.replace(/\\([btnfr"\\])/g, (_m, c) => TOML_ESCAPE[c]);
-const readable = (line) => { const u = unescapeToml(line); return maskText(u) === u; };
+const unescapeToml = (v) => v.replace(/\\(?:u([0-9a-fA-F]{4})|U([0-9a-fA-F]{8})|([btnfr"\\]))/g, (m, u, big, c) => {
+  if (c) return TOML_ESCAPE[c];
+  const cp = parseInt(u ?? big, 16);
+  return cp <= 0x10ffff ? String.fromCodePoint(cp) : m;
+});
+const QUOTED = /"((?:[^"\\]|\\.){0,2000})"|'([^']{0,2000})'/g;
+const readableLine = (typed) => {
+  const same = (t) => maskText(t) === t;
+  if (!same(typed) || !same(unescapeToml(typed))) return false;
+  for (const q of typed.matchAll(QUOTED)) if (!same(q[2] ?? unescapeToml(q[1]))) return false;
+  return true;
+};
 export function echoToml(toml) {
   if (typeof toml !== 'string') return '';
   let inside = null; // the delimiter of an open multi-line string, or ']' for an open array
   const count = (line, d) => line.split(d).length - 1;
-  const lines = maskText(toml).split('\n').map((line) => {
-    if (inside === "'''" || inside === '"""') { if (count(line, inside) % 2 === 1) inside = null; return readable(line) ? line : '[masked:line]'; }
-    if (inside === ']') { if (line.includes(']')) inside = null; return readable(line) ? line : '[masked:line]'; }
+  // The masked text decides what is shown; the lines of the paste AS TYPED decide whether a line may be shown at all (the mask may have left part of a value that a
+  // line-by-line reader can see through). When a mask swallowed a line break the two cannot be paired, and every line that is not structure is hidden.
+  const typed = toml.split('\n'); const shown = maskText(toml).split('\n'); const paired = typed.length === shown.length;
+  const lines = shown.map((line, at) => {
+    const readable = () => paired && readableLine(typed[at]);
+    if (inside === "'''" || inside === '"""') { if (count(line, inside) % 2 === 1) inside = null; return readable() ? line : '[masked:line]'; }
+    if (inside === ']') { if (line.includes(']')) inside = null; return readable() ? line : '[masked:line]'; }
     if (/^\s*(?:#.*)?$/.test(line)) return line;
     if (/^\s*\[/.test(line)) return /^\s*(?:\[\[rules\]\]|\[rules\.allowlist\])\s*(?:#.*)?$/.test(line) ? line : '[masked:table]';
     const m = /^(\s*)([A-Za-z0-9_-]+)(\s*=\s*)(.*)$/.exec(line);
@@ -68,7 +83,7 @@ export function echoToml(toml) {
     if (!KNOWN_KEYS.has(m[2])) return `${m[1]}[masked:key] = [masked:value]`; // name and value both: the keyword may be in the name
     for (const d of ["'''", '"""']) if (count(m[4], d) % 2 === 1) inside = d;
     if (!inside && /^\[/.test(m[4]) && !m[4].includes(']')) inside = ']';
-    if (m[2] !== 'id') return readable(line) ? line : `${m[1]}${m[2]}${m[3]}[masked:value]`;
+    if (m[2] !== 'id') return readable() ? line : `${m[1]}${m[2]}${m[3]}[masked:value]`;
     // a rule id is repeated only when it is exactly a quoted plain id that does not look like a credential
     const plain = /^(?:"([A-Za-z0-9-]{1,64})"|'([A-Za-z0-9-]{1,64})')\s*(?:#.*)?$/.exec(m[4]);
     return plain && !looksLikeCredentialId((plain[1] ?? plain[2]).toLowerCase()) ? line : `${m[1]}id = "[masked:id]"`;

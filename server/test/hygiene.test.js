@@ -2,41 +2,10 @@
 // rule of the single-page fallback, and the workspace-id rule. Numbers and route names are LITERALS on purpose: a test that imports the table cannot catch an entry removed from it.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import fs from 'node:fs';
-import os from 'node:os';
-import path from 'node:path';
-import { createHealth } from '../src/health.js';
-import { createRegexRunner } from '../src/regexRunner.js';
 import { createWorkspaces } from '../src/workspaces.js';
-import { rawHttp } from './helpers.js';
+import { SHELL, captured, rawHttp, withApp } from './helpers.js';
 
 const S1 = ['hunter', '2xyz'].join('');
-const SHELL = '<!doctype html><html><head><title>shell</title></head><body>shell</body></html>';
-
-// The REAL app module, with a known web folder (dist = true: a page shell, one script and one icon) and, optionally, a workspace store of the test's making.
-async function withApp(fn, { dist = true, workspaces = createWorkspaces() } = {}) {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'dpl-hyg-'));
-  if (dist) {
-    fs.mkdirSync(path.join(dir, 'assets'));
-    fs.writeFileSync(path.join(dir, 'index.html'), SHELL);
-    fs.writeFileSync(path.join(dir, 'assets', 'app.js'), 'console.log(1)');
-    fs.writeFileSync(path.join(dir, 'favicon.svg'), '<svg xmlns="http://www.w3.org/2000/svg"/>');
-  }
-  const prev = process.env.WEB_DIST; process.env.WEB_DIST = dist ? dir : path.join(dir, 'missing');
-  let mod; try { mod = await import(`../src/app.js?hyg=${Date.now()}-${Math.random()}`); } finally { if (prev === undefined) delete process.env.WEB_DIST; else process.env.WEB_DIST = prev; }
-  const health = createHealth({ runChecks: async () => [], intervalMs: 3_600_000 }); await health.ready;
-  const runner = createRegexRunner();
-  const { server, url } = await mod.startHttpServer({ port: 0, host: '127.0.0.1', app: mod.createApp({ health, configFile: '/nonexistent/customer.config.json', runner, workspaces }) });
-  try { await fn(url.replace(/\/$/, ''), workspaces); } finally { health.stop(); await new Promise((r) => server.close(r)); await runner.close(); fs.rmSync(dir, { recursive: true, force: true }); }
-}
-// Everything written to stdout and stderr while fn runs.
-async function captured(fn) {
-  const out = []; const orig = { err: process.stderr.write, out: process.stdout.write, log: console.log, error: console.error, warn: console.warn };
-  process.stderr.write = (c) => { out.push(String(c)); return true; };
-  Object.assign(console, { log: (...a) => out.push(a.join(' ')), error: (...a) => out.push(a.join(' ')), warn: (...a) => out.push(a.join(' ')) });
-  try { await fn(); } finally { process.stderr.write = orig.err; Object.assign(console, { log: orig.log, error: orig.error, warn: orig.warn }); }
-  return out.join('\n');
-}
 const OK_BODY = JSON.stringify({ mode: 'live', custom: { text: 'hello', role: 'user_prompt', surface: 'llm' } });
 
 test('charset: any charset but utf-8 is 415 with one fixed body, on every route, and the value is not read, answered or logged', async () => {

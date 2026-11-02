@@ -65,29 +65,34 @@ export function shapeSpans(text) {
   const backward = []; let end = stop;
   for (let k = pieces.length - 2; k >= 1; k--) { const at = t.lastIndexOf(pieces[k], end - pieces[k].length - 1); if (at < first.length) return whole; backward.unshift([at + pieces[k].length, end]); end = at; }
   backward.unshift([first.length, end]);
-  return [...forward, ...backward].map(([start, stop2], i) => ({ start, end: stop2, id: ids[i % ids.length], shape: true })).filter((s) => s.end > s.start);
+  const seen = new Set();
+  return [...forward, ...backward].map(([start, stop2], i) => ({ start, end: stop2, id: ids[i % ids.length], shape: true }))
+    .filter((s) => s.end > s.start && !seen.has(`${s.start}:${s.end}`) && seen.add(`${s.start}:${s.end}`));
 }
 
-// The response mask over a structure: every string value and every object KEY goes through maskText (opaque members excepted), then the shared maskDeep applies its
-// key-name rules (a value under "password" is masked whatever it looks like). Iterative: a deep structure cannot overflow the stack. Keys that collide after masking
-// get a numeric suffix; nothing is dropped. The input is never changed.
+// The response mask over a structure. The shared maskDeep goes first: it reads the structure (a value under "password" is masked whatever it looks like, a name/value
+// pair, the public fields of a JWK stay) and masks every string and every object KEY. Then the app's own detectors mark personal data and lab secrets in what is left,
+// in values and in keys, except in the opaque members. Iterative: a deep structure cannot overflow the stack. Keys that collide after masking get a numeric suffix;
+// nothing is dropped. The input is never changed.
 const put = (obj, key, value) => Object.defineProperty(obj, key, { value, enumerable: true, writable: true, configurable: true });
+const appMask = (text) => maskSpans(text, appSpans(text));
 export function maskDeep(value) {
+  const masked = shared.maskDeep(value);
   const clone = (x) => (Array.isArray(x) ? [] : x && typeof x === 'object' ? {} : x);
-  const root = { v: clone(value) };
-  const work = [[value, root, 'v', '']];
+  const root = { v: clone(masked) };
+  const work = [[masked, root, 'v', '']];
   while (work.length) {
     const [src, dst, key, path] = work.pop();
-    if (typeof src === 'string') { put(dst, key, path && opaque(key, path) ? src : maskText(src)); continue; }
+    if (typeof src === 'string') { put(dst, key, path && opaque(key, path) ? src : appMask(src)); continue; }
     if (src === null || typeof src !== 'object') { put(dst, key, src); continue; }
     const copy = clone(src); put(dst, key, copy);
     const used = new Set();
     for (const k of Object.keys(src).reverse()) {
-      let nk = Array.isArray(src) ? k : maskText(k);
-      for (let n = 2; used.has(nk); n++) nk = `${maskText(k)}~${n}`;
+      let nk = Array.isArray(src) ? k : appMask(k);
+      for (let n = 2; used.has(nk); n++) nk = `${appMask(k)}~${n}`;
       used.add(nk);
       work.push([src[k], copy, nk, path ? `${path}.${k}` : k]);
     }
   }
-  return shared.maskDeep(root.v);
+  return root.v;
 }

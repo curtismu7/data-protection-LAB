@@ -80,14 +80,14 @@ export function builtinFindings(text, { role, piiKinds }) {
   for (const f of detectPii(text, null)) out.push({ id: f.kind, category: 'pii', score: piiKind(f.kind).score, start: f.start, end: f.end, source: 'pii', filtered: piiKinds.length > 0 && !piiKinds.includes(f.kind) });
   // What a person WRITES around a secret ("password hunter2xyz", user:pw@host, {"password":"x"}) is masked in the display copy and in a split stream,
   // but it is not a finding: it adds no category, no score and no decision. The detectors above stay the only thing that is scored.
-  // The shared masker's span starts at the keyword ("key is sk-..."): where a detector of this app already marks the value, only what lies beyond it
-  // is added, so the documented display copy ("The payments gateway key is [masked for display:...]") keeps its keyword.
+  // The shared masker's span starts at the keyword ("key is sk-..."). Where a detector of this app marks the value that ends it, and what lies before the value is only
+  // a short keyword (no digit, at most 40 characters), the span is left out, so the documented display copy ("The payments gateway key is [masked for display:...]")
+  // keeps its keyword. In every other case the whole span is added (more is masked, never less).
   const secrets = detectSecrets(text);
   const marked = [...out.filter((f) => f.source === 'pii'), ...secrets.map((f) => ({ start: f.start, end: f.end }))];
   for (const s of shapeSpans(text)) {
-    let from = s.start;
-    for (const k of marked) if (k.start < s.end && k.end > s.start) from = Math.max(from, k.end);
-    if (from < s.end) out.push({ id: s.id, category: 'secrets', score: 0, start: from, end: s.end, source: 'extra', extra: true, shape: true });
+    const keywordOnly = marked.some((k) => k.start > s.start && k.start < s.end && k.end >= s.end && k.start - s.start <= 40 && !/\d/.test(text.slice(s.start, k.start)));
+    if (!keywordOnly) out.push({ id: s.id, category: 'secrets', score: 0, start: s.start, end: s.end, source: 'extra', extra: true, shape: true });
   }
   for (const f of secrets) {
     out.push({ id: f.rule, category: 'secrets', score: f.score, start: f.start, end: f.end, source: 'secret' });
