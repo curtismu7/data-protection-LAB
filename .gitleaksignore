@@ -1,0 +1,2 @@
+# Test fixtures, not secrets: a PEM frame around a test value in the masking tests
+19d357c416ca433f000d1c221237ee3dffab9cee:server/test/sweep.test.js:private-key:30
