@@ -68,7 +68,8 @@ test('/assets and /assets/ are a JSON 404 whether or not the build exists (they 
   for (const dist of [true, false]) {
     await withApp(async (url) => {
       for (const p of ['/assets', '/assets/', '/ASSETS/']) for (const method of ['GET', 'HEAD']) {
-        const r = await fetch(`${url}${p}`, { method, headers: { accept: 'text/html' } });
+        // redirect 'manual': a 301 to "/assets/" (static serving a directory) must not be followed into the same 404
+        const r = await fetch(`${url}${p}`, { method, headers: { accept: 'text/html' }, redirect: 'manual' });
         assert.equal(r.status, 404, `${method} ${p} dist=${dist}`); assert.match(r.headers.get('content-type'), /^application\/json/);
         if (method === 'GET') assert.equal(await r.text(), '{"error":"not_found"}');
       }
