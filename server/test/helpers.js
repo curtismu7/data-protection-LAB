@@ -1,4 +1,7 @@
 import http from 'node:http';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 import { createDecipheriv, createPrivateKey, createPublicKey, diffieHellman, hkdfSync, randomBytes } from 'node:crypto';
 import { createApp, startHttpServer } from '../src/app.js';
 import { createHealth } from '../src/health.js';
@@ -46,4 +49,32 @@ export function openSealed(privateJwk, env) {
   d.setAAD(Buffer.from(`lab-seal/1|${env.kid}|${env.rid}`));
   d.setAuthTag(ct.subarray(ct.length - 16));
   return Buffer.concat([d.update(ct.subarray(0, ct.length - 16)), d.final()]).toString('utf8');
+}
+
+// ---- the REAL app module with a known web folder, and a capture of everything written to stderr and the console --------------------------------------------
+export const SHELL = '<!doctype html><html><head><title>shell</title></head><body>shell</body></html>';
+
+// The REAL app module, with a known web folder (dist = true: a page shell, one script and one icon) and, optionally, a workspace store of the test's making.
+export async function withApp(fn, { dist = true, workspaces = createWorkspaces(), table } = {}) {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'dpl-hyg-'));
+  if (dist) {
+    fs.mkdirSync(path.join(dir, 'assets'));
+    fs.writeFileSync(path.join(dir, 'index.html'), SHELL);
+    fs.writeFileSync(path.join(dir, 'assets', 'app.js'), 'console.log(1)');
+    fs.writeFileSync(path.join(dir, 'favicon.svg'), '<svg xmlns="http://www.w3.org/2000/svg"/>');
+  }
+  const prev = process.env.WEB_DIST; process.env.WEB_DIST = dist ? dir : path.join(dir, 'missing');
+  let mod; try { mod = await import(`../src/app.js?hyg=${Date.now()}-${Math.random()}`); } finally { if (prev === undefined) delete process.env.WEB_DIST; else process.env.WEB_DIST = prev; }
+  const health = createHealth({ runChecks: async () => [], intervalMs: 3_600_000 }); await health.ready;
+  const runner = createRegexRunner();
+  const { server, url } = await mod.startHttpServer({ port: 0, host: '127.0.0.1', app: mod.createApp({ health, configFile: '/nonexistent/customer.config.json', runner, workspaces, table }) });
+  try { await fn(url.replace(/\/$/, ''), workspaces); } finally { health.stop(); await new Promise((r) => server.close(r)); await runner.close(); fs.rmSync(dir, { recursive: true, force: true }); }
+}
+// Everything written to stdout and stderr while fn runs.
+export async function captured(fn) {
+  const out = []; const orig = { err: process.stderr.write, out: process.stdout.write, log: console.log, error: console.error, warn: console.warn };
+  process.stderr.write = (c) => { out.push(String(c)); return true; };
+  Object.assign(console, { log: (...a) => out.push(a.join(' ')), error: (...a) => out.push(a.join(' ')), warn: (...a) => out.push(a.join(' ')) });
+  try { await fn(); } finally { process.stderr.write = orig.err; Object.assign(console, { log: orig.log, error: orig.error, warn: orig.warn }); }
+  return out.join('\n');
 }

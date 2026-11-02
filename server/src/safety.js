@@ -60,9 +60,11 @@ export function scanKeys(text) {
   return [...String(text).matchAll(/\bsk-(?!MOCK-)[A-Za-z0-9_-]{8,}/g)].map((m) => `${m[0].slice(0, 8)}...`);
 }
 
-// Free text from a caller (custodian, description): control characters stripped, length capped. Rendered as text, never as markup.
+// Free text from a caller (custodian, description): C0/C1 control characters DELETED (a word cannot hide behind interleaved controls), tab, newline and
+// carriage return and bidirectional marks become spaces / are dropped, length capped. Rendered as text, never as markup. Callers that must not cut
+// check the length FIRST and refuse the whole value; the cap here is only a last backstop.
 export function cleanText(value, max = 80) {
-  return String(value ?? '').replace(/[\u0000-\u001f\u007f-\u009f‪-‮⁦-⁩]/g, ' ').trim().slice(0, max);
+  return String(value ?? '').replace(/[\t\n\r]/g, ' ').replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f-\u009f]/g, '').replace(/[\u202a-\u202e\u2066-\u2069]/g, '').trim().slice(0, max);
 }
 
 export function hostCheck(req, res, next) {

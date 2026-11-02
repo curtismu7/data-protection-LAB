@@ -110,7 +110,7 @@ test('policy validation: every wrong type or range is an error naming the field,
     [{ Categories: { pii: { AlertThreshold: -1, SanitizeThreshold: 0.2, BlockThreshold: 0.3 } } }, 'Categories.pii.AlertThreshold'], [{ Categories: { pii: { AlertThreshold: 0.1, SanitizeThreshold: 2, BlockThreshold: 0.3 } } }, 'Categories.pii.SanitizeThreshold'],
     [{ Categories: { pii: { AlertThreshold: 0.1, SanitizeThreshold: 0.2, BlockThreshold: NaN } } }, 'Categories.pii.BlockThreshold'], [{ Categories: { pii: { AlertThreshold: 0.8, SanitizeThreshold: 0.6, BlockThreshold: 0.9 } } }, 'Categories.pii'],
     [{ PIIKinds: 'pii-ssn' }, 'PIIKinds'], [{ PIIKinds: ['pii-nope'] }, 'PIIKinds'], [{ PIIKinds: [5] }, 'PIIKinds'], [{ PIIKinds: ['x'] }, 'PIIKinds'],
-    [{ Keys: [] }, 'Keys'], [{ Keys: { 'BAD ID': {} } }, 'Keys'], [{ Keys: { k: 5 } }, 'Keys.k'], [{ Apps: { a: { PIIKinds: ['pii-nope'] } } }, 'Apps.a.PIIKinds'], [{ Apps: Object.fromEntries(Array.from({ length: 11 }, (_, i) => [`a${i}`, {}])) }, 'Apps'],
+    [{ Keys: [] }, 'Keys'], [{ Keys: { 'BAD ID': {} } }, 'Keys'], [{ Keys: { k: 5 } }, 'Keys[1]'], [{ Apps: { a: { PIIKinds: ['pii-nope'] } } }, 'Apps[1].PIIKinds'], [{ Apps: Object.fromEntries(Array.from({ length: 11 }, (_, i) => [`a${i}`, {}])) }, 'Apps'],
   ];
   for (const [p, field] of cases) { const r = bad(p); assert.equal(r.ok, false, JSON.stringify(p).slice(0, 60)); assert.ok(r.errors.some((e) => e.field.startsWith(field) || field.startsWith(e.field)), `${field}: ${JSON.stringify(r.errors)}`); }
   assert.equal(bad({ Categories: { pii: { AlertThreshold: 0, SanitizeThreshold: 0, BlockThreshold: 0.9 } } }).ok, true, 'a tier that is off does not have to be in order');

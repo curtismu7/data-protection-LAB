@@ -37,6 +37,8 @@ test('no shipped text names a real customer, company or tenant', () => {
     for (const name of fs.readdirSync(dir)) {
       if (skip.has(name)) continue;
       const p = path.join(dir, name);
+      // the shared-masker corpora are random strings cut into 4-character fragments; a three-letter name can appear in them by chance, and they hold no prose
+      if (p === path.join(root, 'server', 'test', 'corpus')) continue;
       if (fs.statSync(p).isDirectory()) walk(p);
       else if (!['repo.test.mjs', 'story.test.js', 'content-pack.test.mjs'].some((n) => p.endsWith(n))) {
         const t = fs.readFileSync(p, 'utf8').toLowerCase();

@@ -1,14 +1,17 @@
+// C0 and C1 control characters are DELETED too (except tab, newline and carriage return, which are whitespace and so become one space): a keyword
+// cannot hide behind interleaved controls.
 // One normalised copy of a text, with an offset map, so every finder sees through the usual evasions: zero-width, bidirectional and tag
 // characters and soft hyphens are dropped, every whitespace run (NBSP, newline, tab, double space) becomes one space, and compatibility forms
 // (fullwidth digits and letters) become their plain form. `starts[i]` and `ends[i]` give the ORIGINAL offsets of normalised character i,
 // so a span found in the copy redacts the right characters of the original.
-const STRIP = /^[­​-‏⁠-⁩‪-‮﻿\u{e0000}-\u{e007f}]$/u;
+const STRIP = /^[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f-\u009f­​-‏⁠-⁩‪-‮﻿\u{e0000}-\u{e007f}]$/u;
 
-export function normalise(text, { lower = false } = {}) {
+export function normalise(text, { lower = false, keepSpace = false } = {}) {
   let norm = ''; const starts = []; const ends = []; let space = false; let i = 0;
   for (const cp of text) {
     const start = i; i += cp.length;
     if (STRIP.test(cp)) continue;
+    if (keepSpace && /\s/u.test(cp)) { norm += cp; for (let k = 0; k < cp.length; k++) { starts.push(start); ends.push(i); } continue; } // whitespace kept as typed (mask.js looks at tab and newline)
     if (/\s/u.test(cp)) { if (!space) { norm += ' '; starts.push(start); ends.push(i); space = true; } continue; }
     space = false;
     let c = cp.normalize('NFKC');
