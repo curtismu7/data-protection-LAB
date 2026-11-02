@@ -49,13 +49,18 @@ function buildRule(raw, n) {
 // comments and blank lines, and the inside of a multi-line string or array. Any other table, key name or line is hidden, because a bare word cannot be
 // told from a secret. A rejected paste is echoed the same way.
 const KNOWN_KEYS = new Set([...KNOWN, 'regexes', 'title']);
+// A TOML string may spell a character as a backslash escape ("pass\tword"); the shared masker reads text as typed, so a line is also read as the parser would
+// read it, and a line that holds a credential once its escapes are decoded is hidden. The escapes TOML defines for a basic string: \b \t \n \f \r \" \\.
+const TOML_ESCAPE = { b: '\b', t: '\t', n: '\n', f: '\f', r: '\r', '"': '"', '\\': '\\' };
+const unescapeToml = (v) => v.replace(/\\([btnfr"\\])/g, (_m, c) => TOML_ESCAPE[c]);
+const readable = (line) => { const u = unescapeToml(line); return maskText(u) === u; };
 export function echoToml(toml) {
   if (typeof toml !== 'string') return '';
   let inside = null; // the delimiter of an open multi-line string, or ']' for an open array
   const count = (line, d) => line.split(d).length - 1;
   const lines = maskText(toml).split('\n').map((line) => {
-    if (inside === "'''" || inside === '"""') { if (count(line, inside) % 2 === 1) inside = null; return line; }
-    if (inside === ']') { if (line.includes(']')) inside = null; return line; }
+    if (inside === "'''" || inside === '"""') { if (count(line, inside) % 2 === 1) inside = null; return readable(line) ? line : '[masked:line]'; }
+    if (inside === ']') { if (line.includes(']')) inside = null; return readable(line) ? line : '[masked:line]'; }
     if (/^\s*(?:#.*)?$/.test(line)) return line;
     if (/^\s*\[/.test(line)) return /^\s*(?:\[\[rules\]\]|\[rules\.allowlist\])\s*(?:#.*)?$/.test(line) ? line : '[masked:table]';
     const m = /^(\s*)([A-Za-z0-9_-]+)(\s*=\s*)(.*)$/.exec(line);
@@ -63,7 +68,7 @@ export function echoToml(toml) {
     if (!KNOWN_KEYS.has(m[2])) return `${m[1]}[masked:key] = [masked:value]`; // name and value both: the keyword may be in the name
     for (const d of ["'''", '"""']) if (count(m[4], d) % 2 === 1) inside = d;
     if (!inside && /^\[/.test(m[4]) && !m[4].includes(']')) inside = ']';
-    if (m[2] !== 'id') return line;
+    if (m[2] !== 'id') return readable(line) ? line : `${m[1]}${m[2]}${m[3]}[masked:value]`;
     // a rule id is repeated only when it is exactly a quoted plain id that does not look like a credential
     const plain = /^(?:"([A-Za-z0-9-]{1,64})"|'([A-Za-z0-9-]{1,64})')\s*(?:#.*)?$/.exec(m[4]);
     return plain && !looksLikeCredentialId((plain[1] ?? plain[2]).toLowerCase()) ? line : `${m[1]}id = "[masked:id]"`;

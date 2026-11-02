@@ -31,10 +31,13 @@ test('no source file builds a regular expression from visitor input, evals, or w
   }
 });
 
-test('mask.js builds regular expressions only from its own constant keyword lists, never from a value', () => {
+test('mask.js is a thin adapter over the shared masker: no regular expression of its own is built, and the shared files name the commit they were copied from', () => {
   const code = fs.readFileSync(new URL('../src/mask.js', import.meta.url), 'utf8').split('\n').filter((l) => !/^\s*\/\//.test(l)).join('\n');
-  const used = [...code.matchAll(/new RegExp\(`([^`]*)`/g)].flatMap((m) => [...m[1].matchAll(/\$\{([^}]*)\}/g)].map((x) => x[1]));
-  assert.ok(used.length > 5, 'the detectors are built from template strings');
-  for (const name of used) assert.ok(['PW', 'PW_SHORT', 'SEC', 'WEAK', 'VALUE'].includes(name), `interpolates ${name}`);
-  assert.ok(!/new RegExp\((?!`|re\.source)/.test(code), 'every other new RegExp( takes a template of constants (or the detector\'s own source)');
+  assert.ok(!/new RegExp\(/.test(code), 'the adapter builds no regular expression at run time');
+  assert.match(code, /from '\.\/shared\/mask\.js'/);
+  for (const f of ['mask.js', 'hygiene.js']) {
+    const head = fs.readFileSync(new URL(`../src/shared/${f}`, import.meta.url), 'utf8').split('\n').slice(0, 2).join(' ');
+    assert.match(head, /shared-masker 1\.4\.0, commit 9bc664a/, `${f}: the header names the version and the commit`);
+  }
+  assert.ok(!/import[^;]*from '(?:\.\.\/){2,}|createRequire|symlink/.test(fs.readFileSync(new URL('../src/app.js', import.meta.url), 'utf8')), 'nothing is imported across repositories');
 });

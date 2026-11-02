@@ -18,7 +18,7 @@ export function parsePublicJwk(input) {
   let o = input;
   if (typeof input === 'string') { if (input.length > 2000) throw new SealError('bad_key', 'the key is too long'); try { o = JSON.parse(input); } catch { throw new SealError('bad_key', 'the key is not JSON'); } }
   if (o === null || typeof o !== 'object' || Array.isArray(o)) throw new SealError('bad_key', 'the key must be a JSON Web Key object');
-  if (Object.hasOwn(o, 'd')) throw new SealError('private_key_refused', 'that is a PRIVATE key: paste only the public half, and keep the private half in your browser');
+  if (Object.hasOwn(o, 'd')) throw new SealError('private_key_refused', 'that is a PRIVATE key, so paste only the public half and keep the private half in your browser');
   if (o.kty !== 'OKP' || o.crv !== 'X25519') throw new SealError('bad_key', 'the key must be an X25519 public JWK (kty OKP, crv X25519)');
   const x = fromB64u(o.x);
   if (!x || x.length !== 32) throw new SealError('bad_key', 'the key x value must be 32 bytes, base64url');

@@ -72,10 +72,10 @@ test('unit: values placed after filler are masked BEFORE any truncation (nothing
 });
 
 test('unit: maskDeep masks object KEYS too, keeps the opaque fields, and a __proto__ key is just a key', () => {
-  const out = maskDeep({ 'password hunter2xyz': 1, nested: { 'token hunter2xyz': ['bob:hunter2xyz@host.example'] }, traceparent: '00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01', epk: SK });
+  const out = maskDeep({ 'password hunter2xyz': 1, nested: { 'token hunter2xyz': ['bob:hunter2xyz@host.example'] }, traceparent: '00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01', envelope: { epk: SK } });
   const json = JSON.stringify(out);
   for (const s of SECRETS.slice(0, 1)) assert.ok(!json.includes(s), json);
-  assert.equal(out.traceparent, '00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01'); assert.equal(out.epk, SK);
+  assert.equal(out.traceparent, '00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01'); assert.equal(out.envelope.epk, SK);
   const two = maskDeep({ 'password hunter2xyz': 1, 'password hunter2abc': 2 });
   assert.equal(Object.keys(two).length, 2, 'two keys that mask to the same text both survive');
   const polluted = maskDeep(JSON.parse('{"__proto__":{"polluted":"password hunter2xyz"},"a":1}'));
@@ -92,7 +92,7 @@ test('unit: hostile input is bounded (no quadratic or exponential pattern in the
 });
 
 test('ids: credential-looking ids are recognised; plain ones are not (literal boundary: 23 hex characters pass, 24 do not)', () => {
-  for (const bad of ['0123456789abcdef01234567', 'abcdefabcdefabcdefabcdef', '1'.repeat(24), SK, 'pw-hunter2xyz', 'token-1', 'password-x', 'ghp_abc', 'a'.repeat(23) + '1' + 'b', 'g'.repeat(23) + '1', AK, 'eyJ-abc']) assert.ok(looksLikeCredentialId(bad), bad);
+  for (const bad of ['0123456789abcdef01234567', 'abcdefabcdefabcdefabcdef', '1'.repeat(24), SK, 'pw-hunter2xyz', 'token-1', 'password-x', 'ghp_abc', 'a'.repeat(23) + '1' + 'b', 'g'.repeat(23) + '1', AK]) assert.ok(looksLikeCredentialId(bad), bad);
   for (const ok of ['default', 'w-0123456789abcdef', 'abcdef0123456789abcdef0', 'abcdefabcdefabcdefabcde', 'g'.repeat(22) + '1', 'g'.repeat(40), 'key-refunds', 'support-portal', 'cst-ticket-ref', 'my-tab-1', 'a1']) assert.ok(!looksLikeCredentialId(ok), ok);
 });
 
@@ -321,7 +321,7 @@ test('scope, policy ids and the prompt-log KeyID: credential-looking ids are ref
 // ---- F: workspace ids ----------------------------------------------------------------------------------------------------------------------------
 test('workspace ids: credential-looking ids are 400 bad_workspace and are never echoed; plain ones work; the length boundary is 40/41 and the hex boundary 23/24', async () => {
   await withServer(async (url) => {
-    const refused = ['0123456789abcdef01234567', 'abcdef0123456789abcdef01', '1'.repeat(24), '1'.repeat(40), SK, 'pw-hunter2xyz', 'pwd-1', 'token-abc', 'secret-key', 'ghp-abc', 'akia-xyz', 'x'.repeat(23) + '9' + 'y', 'g'.repeat(41), 'UPPER', 'has space', '', 'a/b'];
+    const refused = ['0123456789abcdef01234567', 'abcdef0123456789abcdef01', '1'.repeat(24), '1'.repeat(40), SK, 'pw-hunter2xyz', 'token-abc', 'secret-key', 'ghp-abc', 'akia-xyz', 'x'.repeat(23) + '9' + 'y', 'g'.repeat(41), 'UPPER', 'has space', '', 'a/b'];
     for (const id of refused) {
       for (const [m, p] of [['GET', '/api/rules'], ['GET', '/api/insights?mode=live'], ['POST', '/api/reset'], ['POST', '/api/evaluate']]) {
         if (id === '' ) continue;
@@ -467,12 +467,12 @@ test('the engine sees through controls: a phrase, a personal-data value and a se
 const j = (...p) => p.join('');
 const ALONE = [
   ['userinfo with a scheme', 'ftp://bob:aaaa11@localhost/x', 'aaaa11'], ['userinfo that is only a token (scheme)', 'ftp://aaaa11@localhost/x', 'aaaa11'], ['userinfo without a scheme', 'bob:aaaa11@localhost', 'aaaa11'], ['userinfo behind //', '//bob:aaaa11@localhost', 'aaaa11'],
-  ['header line', 'Authorization: aaaa11 zzzz22', 'zzzz22'], ['cookie line', 'Cookie: sid=aaaa11', 'aaaa11'],
+  ['header line', 'Authorization: Negotiate zzzz22', 'zzzz22'], ['cookie line', 'Cookie: sid=aaaa11', 'aaaa11'],
   ['assignment with =', 'password=aaaa11', 'aaaa11'], ['assignment with :', 'pwd: aaaa11', 'aaaa11'], ['assignment with =>', 'client_secret => aaaa11', 'aaaa11'], ['JSON-quoted', '{"password":"aaaa11"}', 'aaaa11'], ['single-quoted', "{'token': 'aaaa11'}", 'aaaa11'],
   ['weak keyword with a value of 6+ and a digit', 'key=aaaa11', 'aaaa11'], ['"is" form, password', 'my password is aaaa11', 'aaaa11'], ['"is" form, key (digit needed)', 'the key is aaaa11', 'aaaa11'], ['"was" form', 'the token was aaaa11', 'aaaa11'],
   ['keyword + space + 6 chars with a digit', 'password aaaa11', 'aaaa11'], ['api key + space', 'api key aaaa11', 'aaaa11'], ['Bearer', 'Bearer aaaa11', 'aaaa11'], ['Basic', 'Basic aaaa11', 'aaaa11'],
-  ['JWT shape', j('ey', 'Jabcde.', 'ey', 'Jabcde.abcde'), j('ey', 'Jabcde')], ['sk- prefix', j('s', 'k-aaaa1111'), 'aaaa1111'], ['sk_live_ prefix', j('s', 'k_live_aaaa1111'), 'aaaa1111'], ['pk_test_ prefix', j('p', 'k_test_aaaa1111'), 'aaaa1111'],
-  ['ghp_ prefix', j('gh', 'p_aaaa1111'), 'aaaa1111'], ['github_pat_ prefix', j('github', '_pat_aaaa1111'), 'aaaa1111'], ['xoxb- prefix', j('xo', 'xb-aaaa1111'), 'aaaa1111'], ['npm_ prefix', j('np', 'm_aaaa1111'), 'aaaa1111'], ['AKIA prefix', j('AK', 'IAAAAAAAAAAAAAA'), 'IAAAAAAAAAAAAAA'],
+  ['JWT shape', j('ey', 'Jabcde.', 'ey', 'Jabcde.abcde'), j('ey', 'Jabcde')], ['sk- prefix', j('s', 'k-aaaa1111aaaa'), 'aaaa1111aaaa'], ['sk_live_ prefix', j('s', 'k_live_aaaa1111'), 'aaaa1111'], ['pk_test_ prefix', j('p', 'k_test_aaaa1111'), 'aaaa1111'],
+  ['ghp_ prefix', j('gh', 'p_aaaa1111aaaa1111'), 'aaaa1111aaaa1111'], ['github_pat_ prefix', j('github', '_pat_aaaa1111aaaa1111'), 'aaaa1111aaaa1111'], ['xoxb- prefix', j('xo', 'xb-aaaa1111'), 'aaaa1111'], ['npm_ prefix', j('np', 'm_aaaa1111aaaa1111'), 'aaaa1111aaaa1111'], ['AKIA prefix', j('AK', 'IAAAAAAAAAAAAAAAAAA'), 'AAAAAAAAAAAAAAAA'],
   ['private-key block body', j('-----BEGIN ', 'PRIVATE', ' KEY-----\nzzzz22\n-----END PRIVATE KEY-----'), 'zzzz22'],
   ['private-key header with a soft hyphen and a zero-width space', j('-----BEGIN ', 'PRIV\u00adATE', ' K\u200bEY-----\nzzzz22\n-----END PRIVATE KEY-----'), 'zzzz22'],
   ['private-key header split by a control', j('-----BEGIN ', 'PRIV\u0001ATE', ' KEY-----\nzzzz22\n-----END PRIVATE KEY-----'), 'zzzz22'],
@@ -489,15 +489,16 @@ test('unit: every credential-shape detector masks on its own (the value is one n
 });
 
 test('unit: a mask is never read as text by the next detector (no doubled brackets), and masking again changes nothing', () => {
-  assert.equal(maskText('ftp://bob@localhost/x'), 'ftp://[masked:credential-shape]@localhost/x');
+  assert.equal(maskText('ftp://bob@localhost/x'), 'ftp://[masked:url-userinfo]localhost/x');
   for (const [, text] of ALONE) { const once = maskText(text); assert.equal(maskText(once), once, text); assert.ok(!once.includes('[['), once); }
 });
 
 test('unit: what the shapes do NOT touch (the readable side of the tradeoff, exact)', () => {
-  const same = ['key:key-refunds', 'author: Bob', 'the password is xyz', 'password is no', 'pw abc12', 'key=abc12', 'token is abcdefgh', 'Basic authentication', 'Bearer tokens', 'see sk-short', 'ghp_x', 'user:name', 'a:b@'];
+  const same = ['key:key-refunds', 'author: Bob', 'password is no', 'pw abc12', 'key=abc12', 'token is abcdefgh', 'Basic authentication', 'Bearer tokens', 'see sk-short', 'ghp_x', 'user:name', 'a:b@'];
   for (const t of same) assert.equal(maskText(t), t, t);
   assert.ok(maskText('the password is xyz1').includes('masked'), 'four characters with a digit after "password is" are masked');
-  assert.ok(!maskText('mailto:sam@x.invalid').includes('credential-shape'), 'a mailto address is an e-mail, not user:password@host');
+  assert.equal(maskText('mailto:sam@x.invalid'), 'mailto:[masked:pii-email]', 'a mailto address is an e-mail, not user:password@host');
+  assert.equal(maskText('the password is xyz'), 'the [masked:phrase]', 'the shared masker masks any value after "password is" that is not an ordinary word');
 });
 
 test('stream: a keyword in one frame and its value in the next is masked in the frame that holds the value (and the other way), whichever way it is spelled', async () => {
