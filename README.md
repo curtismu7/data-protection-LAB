@@ -3,7 +3,7 @@
 A simulation of Ping's data-protection release claims: content inspected in and out with graduated outcomes, your own gitleaks-format rules, personal-data kinds with checksums, Agent Insights, the OWASP Agentic Top 10 as the deck qualifies it, and prompt logging sealed to a key that only your browser holds.
 
 Tier: Demo
-Repo: https://github.com/ping-sandbox/data-protection-LAB
+Repo: https://github.com/curtismu7/data-protection-LAB
 Catalog: D103
 
 **Tier: Demo.** Source: the Ping ID4AI Workforce H2 2026 deck, slides 35, 50 and 53 to 55 (release 2026-11-02). **Every product claim is a Ping release claim, UNVERIFIED on our tenant.** Nothing here calls a real gateway, identity provider or tenant, and nothing leaves your machine.
@@ -79,7 +79,7 @@ The shared layer only ever *masks*: it adds no finding, no score and no decision
 Prerequisites: Node 26 or newer. Docker only if you use the Docker form. Mock mode works with no setup at all: no tenant, no credentials, no settings file. The Prompt logging tab needs a browser with X25519 in WebCrypto (current Chrome, Edge, Safari or Firefox) and says so if yours has not.
 
 ```
-git clone https://github.com/ping-sandbox/data-protection-LAB.git
+git clone https://github.com/curtismu7/data-protection-LAB.git
 cd data-protection-LAB
 npm ci
 npm run build
