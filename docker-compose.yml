@@ -13,6 +13,7 @@ services:
       PORT: "7200"
       DPLAB_BIND: 0.0.0.0
       DPL_LAB_MODE: ${DPL_LAB_MODE:-mock}
+      LAB_ALLOWED_HOSTS: ${LAB_ALLOWED_HOSTS:-data-protection-lab.local.ping-devops.com}
     read_only: true
     cap_drop: [ALL]
     security_opt: ["no-new-privileges:true"]
