@@ -8,11 +8,11 @@ import { createHealth } from '../src/health.js';
 import { createWorkspaces } from '../src/workspaces.js';
 import { createRegexRunner } from '../src/regexRunner.js';
 
-export async function withServer(fn, { configFile = '/nonexistent/customer.config.json', workspaces = createWorkspaces(), runner } = {}) {
+export async function withServer(fn, { configFile = '/nonexistent/customer.config.json', workspaces = createWorkspaces(), runner, env } = {}) {
   const health = createHealth({ runChecks: async () => [], intervalMs: 3_600_000 });
   await health.ready;
   const r = runner || createRegexRunner();
-  const { server, url } = await startHttpServer({ port: 0, host: '127.0.0.1', app: createApp({ health, configFile, workspaces, runner: r }) });
+  const { server, url } = await startHttpServer({ port: 0, host: '127.0.0.1', app: createApp({ health, configFile, workspaces, runner: r, ...(env ? { env } : {}) }) });
   try { await fn(url.replace(/\/$/, ''), { workspaces, runner: r }); } finally { health.stop(); await new Promise((res) => server.close(res)); if (!runner) await r.close(); }
 }
 

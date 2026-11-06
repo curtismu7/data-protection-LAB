@@ -239,3 +239,13 @@ test('the diagram endpoints serve diagram-studio data by name, with the cast fil
     assert.ok(!JSON.stringify(a).includes('{{'));
   });
 });
+
+test('GET /api/shelf answers the shelf URL (null when unconfigured)', async () => {
+  await withServer(async (url) => {
+    const res = await fetch(`${url}/api/shelf`);
+    assert.equal(res.status, 200);
+    const body = await res.json();
+    assert.deepEqual(Object.keys(body), ['shelfUrl']);
+    assert.equal(body.shelfUrl, null);
+  }, { env: {} });
+});

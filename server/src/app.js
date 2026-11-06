@@ -13,6 +13,7 @@ import { buildStory } from './story.js';
 import { DIAGRAM_NAMES, buildDiagram } from './diagramData.js';
 import { InputError } from './errors.js';
 import { maskDeep } from './mask.js';
+import { shelfInfo } from './shelfLink.js';
 import { buildMethodTable, charsetProblem, isPageAddress, methodNotAllowed } from './shared/hygiene.js';
 import { MOCK_TABLE } from './mockTable.js';
 import { createWorkspaces, workspaceFrom } from './workspaces.js';
@@ -33,7 +34,7 @@ const METHODS = buildMethodTable(ROUTES);
 // Static, scripted answers: the story shows the labelled sk-MOCK- credential on purpose (rule 4), so these are the only answers not passed through the response mask.
 const UNMASKED = new Set(['/story', '/diagram', '/info', '/selfcheck']);
 
-export function createApp({ health = createHealth(), configFile = CONFIG, workspaces = createWorkspaces(), table = MOCK_TABLE, runner = sharedRunner } = {}) {
+export function createApp({ health = createHealth(), configFile = CONFIG, workspaces = createWorkspaces(), table = MOCK_TABLE, runner = sharedRunner, env = process.env } = {}) {
   const app = express();
   app.disable('x-powered-by');
   app.use(hostCheck);
@@ -53,6 +54,7 @@ export function createApp({ health = createHealth(), configFile = CONFIG, worksp
   // Defence in depth: every other answer passes through the response mask, so a credential-shaped value cannot leave in any field or object KEY.
   api.use((req, res, next) => { if (!UNMASKED.has(req.path) && !req.path.startsWith('/health')) { const send = res.json.bind(res); res.json = (b) => send(maskDeep(b)); } next(); });
   api.use('/health', health.router);
+  api.get('/shelf', (_req, res) => { noStore(res); res.json(shelfInfo(env)); });
   const verticalOf = (req) => verticalFrom(req.body?.vertical ?? req.query.vertical);
   const castFor = (req) => loadCast(configFile, verticalOf(req));
   const noStore = (res) => res.set('Cache-Control', 'no-store');

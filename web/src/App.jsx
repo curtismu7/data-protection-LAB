@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import ShelfLink from "./components/ShelfLink";
 import DetectTab from "./components/DetectTab";
 import RulesTab from "./components/RulesTab";
 import PromptLogTab from "./components/PromptLogTab";
@@ -114,6 +115,7 @@ export default function App() {
             {!presenter && story && <p className="head__intro">{story.intro}</p>}
           </div>
           <div className="head__tools">
+            <ShelfLink />
             <div className="seg" role="group" aria-label="Mode">
               <button type="button" aria-pressed={mode === "mock"} onClick={() => setMode("mock")} data-testid="mode-mock">Mock</button>
               <button type="button" aria-pressed={mode === "live"} onClick={() => setMode("live")} data-testid="mode-live">Live</button>
