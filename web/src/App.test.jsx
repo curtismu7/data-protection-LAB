@@ -28,7 +28,8 @@ beforeAll(async () => {
   };
 });
 afterAll(async () => { globalThis.fetch = realFetch; await new Promise((r) => server.close(r)); await runner.close(); });
-beforeEach(() => { cleanup(); forgetWorkspace(); seen = []; delay = () => 0; try { window.localStorage.clear(); window.sessionStorage.clear(); } catch { /* ignore */ } window.location.hash = ""; });
+beforeEach(async () => { cleanup(); forgetWorkspace(); seen = []; delay = () => 0; try { window.localStorage.clear(); window.sessionStorage.clear(); } catch { /* ignore */ } window.location.hash = ""; // rule 19: the server holds the mode, so every test starts from mock
+  await realFetch(`${base}/api/mode`, { method: "POST", headers: { "content-type": "application/json", origin: base }, body: JSON.stringify({ source: "mock" }) }); });
 
 const T = { timeout: 20000 };
 const mount = async () => { render(<App />); await screen.findByTestId("verdict", {}, T); };
@@ -70,16 +71,27 @@ describe("shell", () => {
     expect(BANNER_UNKNOWN).toMatch(/UNVERIFIED/);
   }, 120000);
 
-  it("the Mock/Live toggle changes the mode chip and the banner (same mode), and is remembered", async () => {
+  it("rule 19: the Mock/Real toggle is server-backed — each switch POSTs /api/mode with exactly {source} and the mode survives a reload", async () => {
     await mount();
+    seen.length = 0;
     await click("mode-live");
     expect(screen.getByTestId("mode")).toHaveTextContent("Mode: live");
     await waitFor(() => expect(screen.getByTestId("banner")).toHaveTextContent(/LIVE mode.*real sealing/));
     expect(screen.getByTestId("banner")).toHaveAttribute("data-state", "live");
-    expect(window.localStorage.getItem("dp.mode")).toBe("live");
+    expect(seen.some((r) => r.url.endsWith("/api/mode") && r.body === JSON.stringify({ source: "real" }))).toBe(true);
     expect(screen.getByTestId("mode-live")).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByTestId("mode-mock")).toHaveAttribute("aria-pressed", "false");
-  }, 30000);
+    // the mode the server holds survives a reload
+    cleanup(); render(<App />);
+    await waitFor(() => expect(screen.getByTestId("banner")).toHaveTextContent(/LIVE mode/), T);
+    // a bad body is refused 400
+    const r = await fetch(`${base}/api/mode`, { method: "POST", headers: { "content-type": "application/json", origin: base }, body: JSON.stringify({ source: "live" }) });
+    expect(r.status).toBe(400);
+    expect((await r.json()).error).toBe("bad_mode");
+    // back to mock for the next test
+    await click("mode-mock");
+    await waitFor(() => expect(screen.getByTestId("mode")).toHaveTextContent("Mode: mock"), T);
+  }, 60000);
 
   it("the vertical picker changes the cast", async () => {
     await mount();

@@ -21,6 +21,7 @@ import { validatePolicy } from './guard.js';
 import { evaluateAction, getPromptLog, importRules, insightsView, rulesView, setEnforcement, setPromptLog, streamAction } from './service.js';
 import { runSelfCheck, selfCheckOk } from './selfcheck.js';
 import { sharedRunner } from './regexRunner.js';
+import { aiGuardConfig, sendToAiGuard } from './aiguardProbe.js';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const WEB_DIST = process.env.WEB_DIST || path.resolve(HERE, '../../web/dist');
@@ -29,7 +30,7 @@ const BIG = new Set(['/evaluate', '/stream', '/rules/import']);
 // Every known API route and the methods it answers, in ONE table. A known path with another method is 405 with an Allow header (HEAD wherever GET is), before any
 // body is read; any other path is the final JSON 404. The same table is what the 405 tests and mutants read.
 export const ROUTES = { '/api/health': ['GET'], '/api/story': ['GET'], '/api/diagram': ['GET'], '/api/info': ['GET'], '/api/selfcheck': ['GET'], '/api/evaluate': ['POST'], '/api/stream': ['POST'], '/api/rules': ['GET'],
-  '/api/rules/import': ['POST'], '/api/rules/enforcement': ['POST'], '/api/promptlog': ['GET'], '/api/promptlog/config': ['POST'], '/api/insights': ['GET'], '/api/reset': ['POST'] };
+  '/api/rules/import': ['POST'], '/api/rules/enforcement': ['POST'], '/api/promptlog': ['GET'], '/api/promptlog/config': ['POST'], '/api/insights': ['GET'], '/api/reset': ['POST'], '/api/mode': ['POST'] };
 const METHODS = buildMethodTable(ROUTES);
 // Static, scripted answers: the story shows the labelled sk-MOCK- credential on purpose (rule 4), so these are the only answers not passed through the response mask.
 const UNMASKED = new Set(['/story', '/diagram', '/info', '/selfcheck']);
@@ -60,7 +61,22 @@ export function createApp({ health = createHealth(), configFile = CONFIG, worksp
   const noStore = (res) => res.set('Cache-Control', 'no-store');
   api.get('/story', (req, res) => { noStore(res); res.json(buildStory(castFor(req), verticalOf(req))); });
   api.get('/diagram', (req, res) => { noStore(res); res.json(buildDiagram(castFor(req), DIAGRAM_NAMES.includes(req.query.name) ? req.query.name : 'inspection-flow')); });
-  api.get('/info', (_req, res) => { noStore(res); res.json({ mode: defaultMode(), modes: ['mock', 'live'], simulated: true, release: '2026-11-02', unverified: true }); });
+  // Rule 19: the server holds the Mock/Real mode. Both are available: mock reads generated tables, live drives the loopback engine.
+  // The wire value of source is mock|real; this lab's internal mode is mock|live, and real means live here.
+  let current = defaultMode();
+  const toSource = (m) => (m === 'live' ? 'real' : m);
+  const toMode = (s) => (s === 'real' ? 'live' : s);
+  api.get('/info', (_req, res) => { noStore(res); res.json({ mode: current, source: toSource(current), realAvailable: true, realReason: null, modes: ['mock', 'live'], simulated: true, release: '2026-11-02', unverified: true }); });
+  // Rule 19: switching is server-side. The body is exactly { source: "mock" | "real" }.
+  api.post('/mode', (req, res) => {
+    noStore(res);
+    const b = req.body && typeof req.body === 'object' && !Array.isArray(req.body) ? req.body : {};
+    const next = b.source;
+    if (next !== 'mock' && next !== 'real') return res.status(400).json({ error: 'bad_mode', detail: 'source must be exactly "mock" or "real"' });
+    if (!Object.keys(b).every((k) => k === 'source')) return res.status(400).json({ error: 'unknown_field', detail: 'the body takes only source' });
+    current = toMode(next);
+    return res.json({ mode: current, source: toSource(current), realAvailable: true, realReason: null });
+  });
 
   // The workspace id is checked BEFORE any state is touched: a credential-looking or malformed id is 400 bad_workspace and is never echoed or stored.
   const workspace = (req, res, next) => { const id = workspaceFrom(req); if (!id) return res.status(400).json({ error: 'bad_workspace' }); req.workspaceId = id; return next(); };
@@ -140,6 +156,23 @@ export function createApp({ health = createHealth(), configFile = CONFIG, worksp
   });
 
   // Reset clears this workspace's events, sealed records, prompt-log settings and pasted rules only.
+  // Live Privilege check: send one text through the tenant's AI Guard and return the
+  // gateway's own decision. Refused with a clear 503 when Real mode is not configured.
+  api.post('/privilege-check', workspace, async (req, res, next) => {
+    try {
+      const cfg = aiGuardConfig(env);
+      if (!cfg.configured) return res.status(503).json({ error: 'privilege_not_configured', message: 'Real mode is not configured: set CENTRAL_AGENT_A2A_URL and CENTRAL_AGENT_A2A_BEARER in the shared settings file.' });
+      const text = typeof req.body?.text === 'string' ? req.body.text : '';
+      if (!text.trim()) return res.status(400).json({ error: 'bad_request', message: 'text is required' });
+      if (text.length > 4000) return res.status(400).json({ error: 'bad_request', message: 'text over the 4000-character gateway limit' });
+      const answer = await sendToAiGuard({ text, cfg, source: 'data-protection-lab' });
+      return res.json({ workspace: req.workspaceId, status: answer.status, mapped: answer.mapped, raw: answer.raw });
+    } catch (e) {
+      if (e?.name === 'TimeoutError' || /timeout/i.test(String(e?.message))) return res.status(504).json({ error: 'gateway_timeout', message: 'the gateway did not answer in time' });
+      return next(e);
+    }
+  });
+
   api.post('/reset', workspace, (req, res) => { const id = req.workspaceId; noStore(res); workspaces.reset(id); runner.cancel?.(id); return res.json({ reset: 'ok', workspace: id }); });
   api.use((_req, res) => res.status(404).json({ error: 'not_found' }));
   app.use('/api', api);

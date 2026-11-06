@@ -7,7 +7,7 @@ import InsightsTab from "./components/InsightsTab";
 import OwaspTab from "./components/OwaspTab";
 import DiagramTab from "./components/DiagramTab";
 import TalkTrack from "./components/TalkTrack";
-import { getJson, resetWorkspace } from "./api";
+import { getJson, postJson, resetWorkspace } from "./api";
 import { x25519Support } from "./seal";
 
 const THEME_KEY = "dataprot.theme";
@@ -30,10 +30,8 @@ export const TABS = [
 const TAIL = "Every product claim is a Ping release claim, UNVERIFIED on our tenant (release 2026-11-02). Nothing here calls a real gateway, identity provider or tenant.";
 export const BANNER_UNKNOWN = `SIMULATED, MOCK or LIVE mode (loopback only, no outbound network). ${TAIL}`;
 const PRESENTER_TALK = { detect: ["say-first", "detect", "kinds"], rules: ["rules"], promptlog: ["sealed"], insights: ["insights"], owasp: ["owasp"], diagram: ["why-aiguard"] };
-const MODE_KEY = "dp.mode";
 
 const tabFromHash = () => { const h = window.location.hash.replace("#", ""); return TABS.some((t) => t.id === h) ? h : "detect"; };
-const savedMode = () => { try { const m = window.localStorage.getItem(MODE_KEY); return m === "live" || m === "mock" ? m : null; } catch { return null; } };
 
 export default function App() {
   const [vertical, setVertical] = useState("finance");
@@ -56,7 +54,7 @@ export default function App() {
   useEffect(() => { if (theme === "auto") delete document.documentElement.dataset.theme; else document.documentElement.dataset.theme = theme; }, [theme]);
   const tabsRef = useRef(null);
 
-  useEffect(() => { getJson("/api/info").then((i) => setModeState((m) => m || savedMode() || i.mode), () => setModeState((m) => m || savedMode() || "mock")); }, []);
+  useEffect(() => { getJson("/api/info").then((i) => setModeState((m) => m || i.mode || i.source), () => setModeState((m) => m || "mock")); }, []);
   useEffect(() => { x25519Support().then(setSupport); }, []);
   useEffect(() => {
     getJson(`/api/story?vertical=${encodeURIComponent(vertical)}`).then((j) => { setStory(j); setPolicy((p) => p || structuredClone(j.defaultPolicy)); setError(null); }, (e) => setError(e.message));
@@ -66,7 +64,15 @@ export default function App() {
     window.addEventListener("hashchange", on);
     return () => window.removeEventListener("hashchange", on);
   }, []);
-  const setMode = (m) => { setModeState(m); try { window.localStorage.setItem(MODE_KEY, m); } catch { /* storage blocked */ } };
+  // Rule 19: switching is a server call (POST /api/mode with exactly {source}), then the data reloads so the banner,
+  // mode chip and every tab reflect the mode the server answered with.
+  const [modeError, setModeError] = useState(null);
+  const setMode = async (m) => {
+    setModeError(null);
+    const r = await postJson("/api/mode", { source: m === "live" ? "real" : "mock" });
+    if (!r.ok) { setModeError(r.body?.detail || r.body?.error || `HTTP ${r.status}`); return; }
+    setModeState(r.body?.mode || m);
+  };
   const select = (id) => { setTab(id); try { window.history.replaceState(null, "", `#${id}`); } catch { /* ignore */ } };
 
   // Keep the active tab fully in view in the scrolling tab strip (375px).
@@ -109,6 +115,7 @@ export default function App() {
     <div className={`app${presenter ? " app--presenter" : ""}`}>
       <header>
         <p className="banner" role="status" data-state={mode === "live" ? "live" : "mock"} data-testid="banner">{banner}</p>
+        {modeError && <p className="app-error" role="alert" data-testid="mode-error">{modeError}</p>}
         <div className="head">
           <div>
             <h1 className="head__title">Data Protection LAB</h1>

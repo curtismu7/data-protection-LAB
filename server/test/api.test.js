@@ -44,9 +44,28 @@ test('every write is same-origin', async () => {
   });
 });
 
+test('rule 19: POST /api/mode takes exactly {source: mock|real}, holds the mode server-side, and /api/info reports it', async () => {
+  await withServer(async (url) => {
+    let info = await (await get(url, '/api/info')).json();
+    assert.equal(info.source, 'mock'); assert.equal(info.mode, 'mock'); assert.equal(info.realAvailable, true);
+    let r = await post(url, '/api/mode', { source: 'real' });
+    assert.equal(r.status, 200);
+    let body = await r.json();
+    assert.equal(body.source, 'real'); assert.equal(body.mode, 'live');
+    info = await (await get(url, '/api/info')).json();
+    assert.equal(info.source, 'real'); assert.equal(info.mode, 'live');
+    r = await post(url, '/api/mode', { source: 'mock' });
+    assert.equal((await r.json()).source, 'mock');
+    for (const b of [{ source: 'live' }, { mode: 'live' }, {}, { source: 'real', extra: 1 }]) {
+      const rr = await post(url, '/api/mode', b);
+      assert.ok(rr.status === 400 || rr.status === 404, JSON.stringify(b));
+    }
+  });
+});
+
 test('GET /api/info and /api/story: simulated, release 2026-11-02, UNVERIFIED, every vertical, no unfilled token, sets labelled', async () => {
   await withServer(async (url) => {
-    assert.deepEqual(await (await get(url, '/api/info')).json(), { mode: 'mock', modes: ['mock', 'live'], simulated: true, release: '2026-11-02', unverified: true });
+    assert.deepEqual(await (await get(url, '/api/info')).json(), { mode: 'mock', source: 'mock', realAvailable: true, realReason: null, modes: ['mock', 'live'], simulated: true, release: '2026-11-02', unverified: true });
     for (const v of ['finance', 'health', 'retail']) {
       const j = await (await get(url, `/api/story?vertical=${v}`)).json();
       assert.equal(j.vertical, v); assert.equal(j.scenarios.length, 7); assert.equal(j.piiKinds.length, 11); assert.equal(j.categories.length, 13); assert.equal(j.owasp.length, 10);
