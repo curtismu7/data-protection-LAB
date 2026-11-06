@@ -11,14 +11,15 @@ const withFile = (text, fn) => {
   try { return fn(f); } finally { fs.rmSync(dir, { recursive: true, force: true }); }
 };
 
-test('only this lab\'s own key is taken from the shared settings file; every other key stays out', () => {
-  assert.deepEqual(SETTINGS_KEYS, ['DPL_LAB_MODE']);
-  withFile('PINGONE_CLIENT_SECRET=hunter2hunter2\nMODE=live\nPORT=9999\nDPL_LAB_MODE=live\n# a comment\nOTHER_APP_TOKEN="x y"\n', (f) => {
-    assert.deepEqual(readSharedSettings(f), { DPL_LAB_MODE: 'live' });
+test('only this lab\'s own keys are taken from the shared settings file; every other key stays out', () => {
+  assert.deepEqual(SETTINGS_KEYS, ['DPL_LAB_MODE', 'CENTRAL_AGENT_A2A_URL', 'CENTRAL_AGENT_A2A_BEARER']);
+  withFile('PINGONE_CLIENT_SECRET=hunter2hunter2\nMODE=live\nPORT=9999\nDPL_LAB_MODE=live\nCENTRAL_AGENT_A2A_URL=https://aigw.example.invalid/a2a\n# a comment\nOTHER_APP_TOKEN="x y"\n', (f) => {
+    assert.deepEqual(readSharedSettings(f), { DPL_LAB_MODE: 'live', CENTRAL_AGENT_A2A_URL: 'https://aigw.example.invalid/a2a' });
     const env = { HOME: '/x' };
     applySharedSettings(env, f);
-    assert.deepEqual(Object.keys(env).sort(), ['DPL_LAB_MODE', 'HOME']);
+    assert.deepEqual(Object.keys(env).sort(), ['CENTRAL_AGENT_A2A_URL', 'DPL_LAB_MODE', 'HOME']);
     assert.equal(env.DPL_LAB_MODE, 'live');
+    assert.equal(env.CENTRAL_AGENT_A2A_URL, 'https://aigw.example.invalid/a2a');
   });
 });
 

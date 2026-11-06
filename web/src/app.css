@@ -96,3 +96,15 @@ summary { cursor: pointer; font-weight: 700; font-size: 14px; }
 .pat-elabel[data-dim="true"] { opacity: 0.55; }
 @media (max-width: 900px) { .pat-canvas { height: 520px; } }
 @media (max-width: 600px) { .pat-node { font-size: 15px; } .pat-elabel { font-size: 15px; } .head__title { font-size: 18px; } .pat-canvas { height: 560px; } .panel { padding: 10px; } }
+
+/* PrivilegeCheck — the live AI Guard panel. */
+.pc { margin-top: 0.75rem; border-top: 1px solid var(--border, #d9d9d9); padding-top: 0.75rem; display: grid; gap: 0.5rem; }
+.pc__row { display: flex; align-items: baseline; gap: 0.6rem; flex-wrap: wrap; }
+.pc__run { border: 1px solid var(--border, #c8c8c8); background: var(--panel, #fff); color: var(--text, #1c2733); border-radius: 6px; padding: 0.3rem 0.8rem; font-size: 0.85rem; cursor: pointer; }
+.pc__run:disabled { opacity: 0.6; cursor: default; }
+.pc__hint { font-size: 0.75rem; opacity: 0.7; }
+.pc__result { border-radius: 6px; padding: 0.5rem 0.75rem; font-size: 0.85rem; display: grid; gap: 0.25rem; }
+.pc--allow { background: rgba(46, 160, 67, 0.12); }
+.pc--deny { background: rgba(218, 54, 51, 0.12); }
+.pc--warn { background: rgba(154, 103, 0, 0.12); }
+.pc__meta { font-size: 0.72rem; opacity: 0.75; }

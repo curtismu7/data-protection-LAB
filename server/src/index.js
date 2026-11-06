@@ -4,11 +4,13 @@ import { allPassed, runChecks } from './doctor.js';
 import { assertBindAllowed, bindHost, resolvePort } from './safety.js';
 import { modeFrom } from './config.js';
 import { applySharedSettings } from './settings.js';
+import { aiGuardConfig } from './aiguardProbe.js';
 
-installNetguard(); // before anything else can open a socket
-
-// The one shared settings file (rulebook): ~/Development/.env, or STANDALONE_ENV. Optional; only this lab's own key is taken; never printed.
+// The one shared settings file (rulebook): ~/Development/.env, or STANDALONE_ENV. Optional; only this lab's own keys are taken; never printed.
 applySharedSettings();
+
+// Real mode's ONE allowed outbound is the AI Gateway hostname from the settings; everything else is refused.
+installNetguard(aiGuardConfig().host ? [aiGuardConfig().host] : []);
 
 const checks = await runChecks();
 if (!allPassed(checks)) {

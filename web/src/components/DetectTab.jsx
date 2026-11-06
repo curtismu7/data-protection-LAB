@@ -3,6 +3,7 @@ import { getJson, postJson } from "../api";
 import { visible } from "../safeText";
 import { CategoriesTable, ClaimTag, FieldSources, FindingsTable, Hops, Json, SourceTag, TierTag, Verdict, useSeq } from "./Bits";
 import PolicyPanel, { scopeParts } from "./PolicyPanel";
+import PrivilegeCheck from "./PrivilegeCheck";
 
 const TEXT_LIMIT = 20000;
 const FRAME_LIMIT = 20;
@@ -29,6 +30,7 @@ export function ResultView({ r }) {
       </div>
       <FindingsTable findings={ev.findings} />
       <Hops hops={r.hops} traceId={r.traceId} />
+      <PrivilegeCheck text={ev.text} />
     </div>
   );
 }

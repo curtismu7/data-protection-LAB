@@ -6,7 +6,9 @@ import os from 'node:os';
 import path from 'node:path';
 import { parseEnv } from 'node:util';
 
-export const SETTINGS_KEYS = ['DPL_LAB_MODE'];
+// CENTRAL_AGENT_A2A_* configure the one Real-mode outbound (the AI Gateway probe); they are
+// never printed and only used to build the configured endpoint URL.
+export const SETTINGS_KEYS = ['DPL_LAB_MODE', 'CENTRAL_AGENT_A2A_URL', 'CENTRAL_AGENT_A2A_BEARER'];
 export const settingsPath = (env = process.env) => env.STANDALONE_ENV || path.join(os.homedir(), 'Development', '.env');
 
 export function readSharedSettings(file) {
