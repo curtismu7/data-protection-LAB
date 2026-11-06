@@ -14,6 +14,11 @@ services:
       DPLAB_BIND: 0.0.0.0
       DPL_LAB_MODE: ${DPL_LAB_MODE:-mock}
       LAB_ALLOWED_HOSTS: ${LAB_ALLOWED_HOSTS:-data-protection-lab.local.ping-devops.com}
+    # Real mode's AI Gateway endpoint + bearer come from the shared settings file (rule 19/94);
+    # the server filters the file to its own keys, so nothing else here enters the environment.
+    env_file:
+      - path: ${STANDALONE_ENV:-/Users/cmuir/Development/.env}
+        required: false
     read_only: true
     cap_drop: [ALL]
     security_opt: ["no-new-privileges:true"]
