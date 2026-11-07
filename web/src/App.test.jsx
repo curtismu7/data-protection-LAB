@@ -75,7 +75,7 @@ describe("shell", () => {
     await mount();
     seen.length = 0;
     await click("mode-live");
-    expect(screen.getByTestId("mode")).toHaveTextContent("Mode: live");
+    await waitFor(() => expect(screen.getByTestId("mode")).toHaveTextContent("Mode: live"), T);
     await waitFor(() => expect(screen.getByTestId("banner")).toHaveTextContent(/LIVE mode.*real sealing/));
     expect(screen.getByTestId("banner")).toHaveAttribute("data-state", "live");
     expect(seen.some((r) => r.url.endsWith("/api/mode") && r.body === JSON.stringify({ source: "real" }))).toBe(true);
