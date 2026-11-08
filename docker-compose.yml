@@ -10,6 +10,7 @@ services:
     ports:
       - "127.0.0.1:${HOST_PORT:-7200}:7200"
     environment:
+      SHELF_URL: ${SHELF_URL:-http://127.0.0.1:4400}
       PORT: "7200"
       DPLAB_BIND: 0.0.0.0
       DPL_LAB_MODE: ${DPL_LAB_MODE:-mock}
