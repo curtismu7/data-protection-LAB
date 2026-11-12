@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import TopMenu, { applyFontSize } from "./top-menu/TopMenu";
 import ShelfLink from "./components/ShelfLink";
 import DetectTab from "./components/DetectTab";
 import RulesTab from "./components/RulesTab";
@@ -11,10 +12,15 @@ import { getJson, postJson, resetWorkspace } from "./api";
 import { x25519Support } from "./seal";
 
 const THEME_KEY = "dataprot.theme";
+const FONT_KEY = "dataprot.font";
 const THEMES = [["auto", "Auto"], ["light", "Light"], ["dark", "Dark"]];
 function initialTheme() {
   try { const t = localStorage.getItem(THEME_KEY); if (t === "light" || t === "dark") return t; } catch { /* storage blocked */ }
   return "auto";
+}
+function initialFont() {
+  try { const f = localStorage.getItem(FONT_KEY); if (f === "S" || f === "M" || f === "L") return f; } catch { /* storage blocked */ }
+  return "M";
 }
 
 export const TABS = [
@@ -46,12 +52,14 @@ export default function App() {
   const [resetSignal, setResetSignal] = useState(0);
   const [resetMsg, setResetMsg] = useState("");
   const [theme, setTheme] = useState(initialTheme);
+  const [fontStep, setFontStep] = useState(initialFont);
   const pickTheme = (next) => {
     try { if (next === "auto") localStorage.removeItem(THEME_KEY); else localStorage.setItem(THEME_KEY, next); } catch { /* not remembered */ }
     setTheme(next);
   };
   // The picker only sets data-theme; the shared stylesheet does the rest ("auto" follows the system setting).
   useEffect(() => { if (theme === "auto") delete document.documentElement.dataset.theme; else document.documentElement.dataset.theme = theme; }, [theme]);
+  useEffect(() => { applyFontSize(fontStep); try { localStorage.setItem(FONT_KEY, fontStep); } catch { /* not remembered */ } }, [fontStep]);
   const tabsRef = useRef(null);
 
   useEffect(() => { getJson("/api/info").then((i) => setModeState((m) => m || i.mode || i.source), () => setModeState((m) => m || "mock")); }, []);
@@ -122,26 +130,19 @@ export default function App() {
             {!presenter && story && <p className="head__intro">{story.intro}</p>}
           </div>
           <div className="head__tools">
-            <ShelfLink />
-            <div className="seg" role="group" aria-label="Mode">
-              <button type="button" aria-pressed={mode === "mock"} onClick={() => setMode("mock")} data-testid="mode-mock">Mock</button>
-              <button type="button" aria-pressed={mode === "live"} onClick={() => setMode("live")} data-testid="mode-live">Live</button>
-            </div>
-            <label className="shell-theme">Theme
-              <select value={theme} onChange={(e) => pickTheme(e.target.value)}>
-                {THEMES.map(([id, label]) => <option key={id} value={id}>{label}</option>)}
-              </select>
-            </label>
+            <TopMenu
+              mode={{ value: mode === "live" ? "real" : "mock", onChange: (v) => setMode(v === "real" ? "live" : "mock"), realAvailable: true }}
+              vertical={{ value: vertical, onChange: setVertical, options: story ? story.verticals : ["finance"] }}
+              theme={{ value: theme, onChange: pickTheme }}
+              fontSize={{ value: fontStep, onChange: setFontStep }}
+              present={{ active: presenter, onToggle: () => setPresenter((v) => !v) }}
+              talkTrack={{ active: tab === "talk", onToggle: () => select("talk") }}
+              help={{ href: "https://github.com/curtismu7/data-protection-LAB#readme" }}
+              onReset={reset}
+            >
+              <ShelfLink />
+            </TopMenu>
             <span className="chip" data-testid="mode">Mode: {mode || "..."}{mode === "live" ? " (local engine, loopback)" : mode === "mock" ? " (tables)" : ""}</span>
-            {!presenter && (
-              <label className="inline">Vertical{" "}
-                <select value={vertical} onChange={(e) => setVertical(e.target.value)} data-testid="vertical">
-                  {(story ? story.verticals : ["finance"]).map((v) => <option key={v} value={v}>{v}</option>)}
-                </select>
-              </label>
-            )}
-            <button type="button" onClick={reset} data-testid="reset">Reset</button>
-            <button type="button" aria-pressed={presenter} onClick={() => setPresenter((v) => !v)} data-testid="presenter">{presenter ? "Exit presenter (Esc)" : "Presenter (P)"}</button>
           </div>
         </div>
       </header>
