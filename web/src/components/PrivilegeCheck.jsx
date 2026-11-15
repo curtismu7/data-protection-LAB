@@ -28,7 +28,7 @@ export default function PrivilegeCheck({ text, label = "Run the same text throug
         <div className={`pc__result ${cls}`} role="status" data-testid="pc-verdict">
           <strong>{D === "deny" ? "Gateway denied the content (policy)" : D === "allow" ? "Gateway allowed the content" : "Gateway answered; the lab could not map the answer shape"}</strong>
           <span className="pc__meta">{state.result.mapped?.reasonCode ?? ""} · HTTP {state.result.status} · {state.result.mapped?.decidedBy ?? "the gateway"}</span>
-          <Json value={state.result.raw} label="gateway answer" testId="pc-raw" />
+          <Json value={state.result.raw} label="gateway answer" testId="pc-raw" hot={["state", "code", "message"]} />
         </div>
       )}
       {state.phase === "error" && <div className="pc__result pc--warn" role="alert"><strong>Could not reach the gateway</strong><p>{state.message}</p></div>}
