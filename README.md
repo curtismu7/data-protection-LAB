@@ -162,3 +162,12 @@ On Node 26: 429 tests pass (365 server, 43 web, 21 scripts).
 ## Not done
 
 No SE k8s build (deferred by the owner, 2026-10-31). No catalog id yet. Every product claim stays UNVERIFIED until it is measured on a tenant that has the release. The external-guardrail layer, Ping's list of 23 kinds, its 364 detectors and 411 rules, and the real product's sealing format are not reproduced.
+
+---
+
+## Real mode: what this lab uses in PingOne Privilege
+
+Real mode sends each inspection to the tenant's live **AI Gateway** — PingOne Privilege's
+**AI Guard** in the decision path — over A2A JSON-RPC (`CENTRAL_AGENT_A2A_*` in the shared
+settings file). The gateway's own data-loss policy decides; this lab only maps the measured
+answer shapes to a decision. The netguard's allowlist is exactly the gateway's one hostname.
