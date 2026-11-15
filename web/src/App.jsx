@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import TopMenu, { applyFontSize } from "./top-menu/TopMenu";
 import ShelfLink from "./components/ShelfLink";
+import VerifyMark from "./components/VerifyMark";
 import DetectTab from "./components/DetectTab";
 import RulesTab from "./components/RulesTab";
 import PromptLogTab from "./components/PromptLogTab";
@@ -141,6 +142,7 @@ export default function App() {
               onReset={reset}
             >
               <ShelfLink />
+              <VerifyMark id="data-protection-lab" />
             </TopMenu>
             <span className="chip" data-testid="mode">Mode: {mode || "..."}{mode === "live" ? " (local engine, loopback)" : mode === "mock" ? " (tables)" : ""}</span>
           </div>
