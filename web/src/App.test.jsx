@@ -10,6 +10,7 @@ import { PII_KINDS, SAMPLES, luhnComplete } from "../../server/src/pii.js";
 import { SECRET_DETECTORS } from "../../server/src/secrets.js";
 import App, { BANNER_UNKNOWN, TABS } from "./App";
 import { labelOffsets } from "./components/PatternDiagram";
+import { setJsonView } from "./components/JsonPane";
 import { visible } from "./safeText";
 import { forgetWorkspace } from "./workspace";
 
@@ -28,7 +29,7 @@ beforeAll(async () => {
   };
 });
 afterAll(async () => { globalThis.fetch = realFetch; await new Promise((r) => server.close(r)); await runner.close(); });
-beforeEach(async () => { cleanup(); forgetWorkspace(); seen = []; delay = () => 0; try { window.localStorage.clear(); window.sessionStorage.clear(); } catch { /* ignore */ } window.location.hash = ""; // rule 19: the server holds the mode, so every test starts from mock
+beforeEach(async () => { cleanup(); setJsonView("form"); forgetWorkspace(); seen = []; delay = () => 0; try { window.localStorage.clear(); window.sessionStorage.clear(); } catch { /* ignore */ } window.location.hash = ""; // rule 19: the server holds the mode, so every test starts from mock
   await realFetch(`${base}/api/mode`, { method: "POST", headers: { "content-type": "application/json", origin: base }, body: JSON.stringify({ source: "mock" }) }); });
 
 const T = { timeout: 20000 };
@@ -116,6 +117,22 @@ describe("detect tab", () => {
     expect(within(screen.getByTestId("findings")).getAllByRole("row").length).toBeGreaterThan(2);
     expect(screen.getByTestId("hops")).toBeInTheDocument();
   }, 120000);
+
+  it("the hop payloads are shared JsonPane panes: Form first, the exact JSON on the JSON button, this lab's keys marked, full view", async () => {
+    await mount();
+    const hops = screen.getByTestId("hops");
+    expect(within(hops).getByLabelText("hop 2 response")).toHaveClass("json--form");
+    expect(within(hops).getAllByRole("button", { name: "Form" }).length).toBe(2 * (hops.querySelectorAll("h4").length));
+    await userEvent.click(within(hops).getAllByRole("button", { name: "JSON" })[0]);
+    const req = within(hops).getByLabelText("hop 1 request");
+    expect(req.tagName).toBe("PRE");
+    expect(req).toHaveClass("json--raw");
+    expect(req).toHaveTextContent('"method": "POST"');
+    const res = within(hops).getByLabelText("hop 2 response");
+    expect([...res.querySelectorAll(".jtok--hot")].map((n) => n.textContent)).toEqual(expect.arrayContaining(['"decision"', '"forwarded"']));
+    const css = (await import("./app.css?raw")).default;
+    expect(css).not.toMatch(/\.json[^{]*\{[^}]*(max-height|overflow)/);
+  }, 60000);
 
   it("the Mock policy is read-only and says so; Live makes it editable; Mock has no own-text box", async () => {
     await mount();
