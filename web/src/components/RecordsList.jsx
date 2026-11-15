@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { openEnvelope } from "../seal";
 import { visible } from "../safeText";
-import { SourceTag } from "./Bits";
+import { Json, SourceTag } from "./Bits";
 
 // The sealed record list. The metadata is in the clear; the content stays sealed until a private key is chosen and ONE record is opened,
 // and the opening happens here, in the browser. The plaintext lives in this component's state only, until Close (or unmount).
@@ -57,8 +57,8 @@ export default function RecordsList({ records, keyring, mode, support }) {
           {open.ok ? (
             <>
               <p className="muted">The server never saw the key or this text. It is held only in this panel until you close it.</p>
-              <pre className="json" tabIndex={0} aria-label="decrypted prompt" data-testid="opened-prompt">{visible(open.body.prompt ?? "")}</pre>
-              {open.body.response !== undefined && <pre className="json" tabIndex={0} aria-label="decrypted response" data-testid="opened-response">{visible(open.body.response)}</pre>}
+              <Json value={open.body.prompt ?? ""} label="decrypted prompt" testId="opened-prompt" />
+              {open.body.response !== undefined && <Json value={open.body.response} label="decrypted response" testId="opened-response" />}
               {open.body.truncated && <p className="muted">This record was cut to MaxBytes when it was sealed.</p>}
             </>
           ) : <p className="field-error" role="alert" data-testid="open-error">{visible(open.reason)}</p>}
