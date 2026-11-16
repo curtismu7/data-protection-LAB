@@ -56,7 +56,7 @@ export default function InsightsTab({ story, mode, keyring, support, resetSignal
             </label>
           ))}
           <button type="button" onClick={() => { setFilters({}); }} data-testid="f-clear">Clear filters</button>
-          <button type="button" onClick={load} data-testid="f-refresh">Refresh</button>
+          <button type="button" className="primary" onClick={load} data-testid="f-refresh">Refresh</button>
         </div>
         {error && <p className="field-error" role="alert">Could not load ({visible(error)}).</p>}
         {data && <p className="muted" data-testid="count" aria-live="polite">{data.total} event(s) match; showing {data.shown}{data.total > data.shown ? ` (the newest ${data.limit})` : ""}. Window: {data.window === "live" ? "live view" : data.window}.</p>}
