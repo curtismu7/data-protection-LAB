@@ -118,7 +118,7 @@ export default function PromptLogTab({ story, mode, keyring, setKeyring, support
           <label>MaxBytes (0 takes the default {story.limits.promptLog.defaultMaxBytes}; otherwise {story.limits.promptLog.minBytes} to {story.limits.promptLog.maxBytes}; the text of one record, prompt first)
             <input type="number" min="0" max={story.limits.promptLog.maxBytes} value={cfg.MaxBytes} disabled={!live} onChange={(e) => setCfg({ ...cfg, MaxBytes: Number(e.target.value) })} data-testid="pl-max" />
           </label>
-          <div className="toggles"><button type="button" className="primary" onClick={save} disabled={!live} data-testid="pl-save">Save the settings</button></div>
+          <div className="toggles"><button type="button" onClick={save} disabled={!live} data-testid="pl-save">Save the settings</button></div>
         </div>
         {cfgError && <p className="field-error" role="alert" data-testid="pl-error">{visible(cfgError)}</p>}
         {status && <p data-testid="pl-status" data-state={status.recording ? "ok" : "warn"}>{status.recording ? "Recording. " : "Not recording. "}{visible(status.why)}</p>}
@@ -140,7 +140,7 @@ export default function PromptLogTab({ story, mode, keyring, setKeyring, support
             <label>Response (retained when IncludeResponses is on; not inspected in this lab)
               <textarea rows={2} value={send.response} maxLength={20000} onChange={(e) => setSend({ ...send, response: e.target.value })} data-testid="send-response" />
             </label>
-            <div className="toggles"><button type="button" className="primary" disabled={!send.text.trim()} onClick={sendIt} data-testid="send-go">Send and record</button></div>
+            <div className="toggles"><button type="button" disabled={!send.text.trim()} onClick={sendIt} data-testid="send-go">Send and record</button></div>
           </div>
         )}
         {sent && (sent.error ? <p className="field-error" role="alert">{visible(sent.error)}</p> : (

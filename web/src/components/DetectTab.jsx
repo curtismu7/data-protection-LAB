@@ -77,7 +77,7 @@ function StreamPanel({ story, mode, policy, scope, resetSignal }) {
               <textarea rows={5} value={own} onChange={(e) => setOwn(e.target.value)} data-testid="stream-own" />
             </label>
             {tooMany && <p className="field-error" role="alert">At most {FRAME_LIMIT} frames of {FRAME_CHARS} characters.</p>}
-            <button type="button" className="primary" disabled={!frames.length || tooMany} onClick={() => run(frames)} data-testid="stream-own-run">Run my frames</button>
+            <button type="button" disabled={!frames.length || tooMany} onClick={() => run(frames)} data-testid="stream-own-run">Run my frames</button>
           </div>
         )}
       </details>
@@ -173,7 +173,7 @@ export default function DetectTab({ story, mode, policy, setPolicy, resetSignal 
                 <textarea rows={4} value={custom.text} maxLength={TEXT_LIMIT} onChange={(e) => setCustom({ ...custom, text: e.target.value })} data-testid="custom-text" />
               </label>
               <p className="muted">{custom.text.length} of {TEXT_LIMIT} characters.</p>
-              <button type="submit" className="primary" data-testid="custom-run" disabled={!custom.text.trim()}>Inspect my text</button>
+              <button type="submit" data-testid="custom-run" disabled={!custom.text.trim()}>Inspect my text</button>
             </form>
           )}
         </details>

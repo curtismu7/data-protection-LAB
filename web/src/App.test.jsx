@@ -34,7 +34,7 @@ beforeEach(async () => { cleanup(); setJsonView("form"); forgetWorkspace(); seen
 
 const T = { timeout: 20000 };
 const mount = async () => { render(<App />); await screen.findByTestId("verdict", {}, T); };
-const tab = (name) => userEvent.click(screen.getByRole("tab", { name }));
+const tab = (name) => userEvent.click(within(screen.getByRole("navigation", { name: "Lab sections" })).getByRole("link", { name }));
 const click = (id, value) => (value === undefined ? userEvent.click(screen.getByTestId(id)) : userEvent.selectOptions(screen.getByTestId(id), value));
 const live = async () => { await click("mode-select", "real"); await waitFor(() => expect(screen.getByTestId("banner")).toHaveTextContent(/LIVE mode/)); };
 const verdict = () => screen.getByTestId("verdict-word");
@@ -54,9 +54,18 @@ describe("shell", () => {
   it("says it is simulated and UNVERIFIED on every tab, in presenter mode too, and shows the mode", async () => {
     await mount();
     expect(screen.getByTestId("banner")).toHaveTextContent(/MOCK mode/);
-    expect(screen.getByTestId("mode")).toHaveTextContent("Mode: mock");
+    expect(screen.getByTestId("mode")).toHaveTextContent("Mock");
+    // shell bar first (brand, mode badge, section pills, TopMenu), then <main> whose first child is the banner
+    const bar = document.querySelector("header.shell-bar");
+    expect(document.querySelector(".app").firstElementChild).toBe(bar);
+    expect(bar.nextElementSibling.tagName).toBe("MAIN");
+    expect(document.querySelector("main").firstElementChild).toBe(screen.getByTestId("banner"));
+    expect(bar.querySelector(".shell-brand h1")).toHaveTextContent("Data Protection LAB");
+    expect(bar.querySelector(".shell-brand [data-testid=mode]")).not.toBeNull();
+    expect(bar.querySelector("[data-testid=top-menu]")).toHaveClass("shell-right");
     for (const t of TABS) {
       await tab(t.label);
+      expect(bar.querySelector('.shell-nav a[aria-current="page"]')).toHaveTextContent(t.label);
       expect(screen.getByTestId("banner")).toHaveTextContent(/UNVERIFIED on our tenant/);
       expect((await screen.findAllByTestId("claim-tag", {}, T)).length).toBeGreaterThan(0);
     }
@@ -76,7 +85,7 @@ describe("shell", () => {
     await mount();
     seen.length = 0;
     await click("mode-select", "real");
-    await waitFor(() => expect(screen.getByTestId("mode")).toHaveTextContent("Mode: live"), T);
+    await waitFor(() => expect(screen.getByTestId("mode")).toHaveTextContent("Live"), T);
     await waitFor(() => expect(screen.getByTestId("banner")).toHaveTextContent(/LIVE mode.*real sealing/));
     expect(screen.getByTestId("banner")).toHaveAttribute("data-state", "live");
     expect(seen.some((r) => r.url.endsWith("/api/mode") && r.body === JSON.stringify({ source: "real" }))).toBe(true);
@@ -91,7 +100,7 @@ describe("shell", () => {
     expect((await r.json()).error).toBe("bad_mode");
     // back to mock for the next test
     await click("mode-select", "mock");
-    await waitFor(() => expect(screen.getByTestId("mode")).toHaveTextContent("Mode: mock"), T);
+    await waitFor(() => expect(screen.getByTestId("mode")).toHaveTextContent("Mock"), T);
   }, 60000);
 
   it("the vertical picker changes the cast", async () => {
