@@ -1,4 +1,4 @@
-import { useSyncExternalStore } from "react";
+import { useState, useSyncExternalStore } from "react";
 import { visible } from "../safeText";
 
 // View preference: a tiny per-lab store (localStorage, best effort). The lab does not need
@@ -74,7 +74,10 @@ const MAX_PANE_CHARS = 150000; // above this a pane is plain text
 const MAX_FORM_DEPTH = 60; // deeper than this the Form view shows the rest as text
 const prim = (v) => v === null || typeof v !== "object";
 // An object, or a list of objects, goes UNDER its label at full width (a deep payload must not spend a label column per level); scalars and chip lists stay beside it.
-const nestedValue = (v) => !prim(v) && !(Array.isArray(v) && v.every(prim));
+// A HAL-style link — an object whose only entry is a string `href` — collapses in the Form view to its
+// parent key with the URL as the value (one row, no nested "href" label).
+const hrefOnly = (v) => v && typeof v === "object" && !Array.isArray(v) && Object.keys(v).length === 1 && typeof v.href === "string";
+const nestedValue = (v) => !prim(v) && !hrefOnly(v) && !(Array.isArray(v) && v.every(prim));
 const date = (n) => (Number.isFinite(n) && n > 1e9 && n < 1e11 ? `${new Date(n * 1000).toISOString().replace("T", " ").slice(0, 19)} UTC` : null);
 
 export function kindOf(v, key = "") {
@@ -189,12 +192,14 @@ function Form({ value, hot, k = "", depth = 0 }) {
   if (value && typeof value === "object") {
     const entries = Object.entries(value);
     if (!entries.length) return <span className="jform__v jform__v--null">empty</span>;
+    // A HAL-style link ({ href: "..." }) collapses to one row here: the parent key with the URL as its value.
+    if (hrefOnly(value) && depth > 0) return <Value v={value.href} k={k} hot={hot} />;
     return (
       <dl className="jform" data-depth={Math.min(depth, 3)}>
         {entries.map(([key, v]) => (
           <div key={key} className="jform__row" data-hot={hot.has(key) ? "true" : undefined} data-alert={ALERT.has(key) ? "true" : undefined} data-nested={nestedValue(v) ? "true" : undefined}>
             <dt className="jform__k">{visible(key)}</dt>
-            <dd className="jform__d">{prim(v) ? <Value v={v} k={key} hot={hot} /> : <Form value={v} hot={hot} k={key} depth={depth + 1} />}</dd>
+            <dd className="jform__d">{prim(v) ? <Value v={v} k={key} hot={hot} /> : <Section value={v} name={key} hot={hot} />}</dd>
           </div>
         ))}
       </dl>
@@ -203,9 +208,93 @@ function Form({ value, hot, k = "", depth = 0 }) {
   return <Value v={value} k={k} />;
 }
 
+// ---- Hybrid C+A sections (owner, 2026-11-19): a nested object or array is one collapsed line until opened -------------------------------
+// The section header names the key with its kind and size (object · 3 fields / array · 2 items); opening it
+// reveals ONE flat list of dot-path rows (customer.email, items[0].amount) — no boxes inside boxes. Every
+// existing cue survives: hot keys tint their row, alert keys colour it, chips / tokens / times render as before.
+function Section({ value, name, hot }) {
+  const [open, setOpen] = useState(false);
+  const isArr = Array.isArray(value);
+  const count = isArr ? value.length : Object.keys(value).length;
+  const kindLabel = isArr ? "array" : "object";
+  const noun = isArr ? "items" : "fields";
+  // The one-line preview of a collapsed section: the first scalar leaf, so a common payload (a nested
+  // name, a status) often needs no click at all.
+  const preview = firstLeaf(value);
+  return (
+    <details className="jsec" data-open={open ? "true" : undefined} onToggle={(e) => setOpen(e.currentTarget.open)}>
+      <summary className="jsec__head">
+        <span className="jsec__caret" aria-hidden="true">{open ? "▾" : "▸"}</span>
+        <span className="jsec__name">{visible(name)}</span>
+        <span className="jsec__meta">{kindLabel} · {count} {count === 1 ? noun.slice(0, -1) : noun}</span>
+      </summary>
+      {preview !== undefined && !open && <span className="jsec__preview"><Value v={preview.v} k={preview.k} hot={hot} /></span>}
+      <div className="jsec__body">
+        <FlatRows value={value} prefix={name} hot={hot} />
+      </div>
+    </details>
+  );
+}
+
+// The first scalar leaf of a branch, with the key it was found under — the preview line.
+function firstLeaf(value, path = "") {
+  if (Array.isArray(value)) {
+    for (let i = 0; i < value.length; i++) {
+      const f = firstLeaf(value[i], `${path}[${i}]`);
+      if (f) return f;
+    }
+    return undefined;
+  }
+  if (value && typeof value === "object") {
+    if (hrefOnly(value)) return { v: value.href, k: path };
+    for (const [k, v] of Object.entries(value)) {
+      const f = firstLeaf(v, path ? `${path}.${k}` : k);
+      if (f) return f;
+    }
+    return undefined;
+  }
+  return { v: value, k: path };
+}
+
+// Every leaf of a branch as `dot.path[index]` rows, in order. A nested group inside (an object in an
+// array, say) flattens too — one flat list, no recursion boxes.
+function FlatRows({ value, prefix, hot }) {
+  const rows = [];
+  const walk = (v, p) => {
+    if (Array.isArray(v)) {
+      if (!v.length) { rows.push({ path: p, empty: "[ ] empty list" }); return; }
+      v.forEach((x, i) => walk(x, `${p}[${i}]`));
+      return;
+    }
+    if (v && typeof v === "object") {
+      const entries = Object.entries(v);
+      if (!entries.length) { rows.push({ path: p, empty: "{ } no fields" }); return; }
+      if (hrefOnly(v)) { rows.push({ path: p, v: v.href, k: p }); return; }
+      for (const [k, x] of entries) walk(x, p ? `${p}.${k}` : k);
+      return;
+    }
+    rows.push({ path: p, v, k: p });
+  };
+  walk(value, prefix);
+  const base = prefix.split(/[.[]/)[0];
+  return (
+    <dl className="jform jform--flat" data-depth="1">
+      {rows.map((r, i) => {
+        const leafKey = r.k ? r.k.split(/[.[]/).pop().replace(/\]$/, "") : "";
+        return (
+          <div key={`${r.path}-${i}`} className="jform__row" data-hot={hot.has(base) || hot.has(leafKey) ? "true" : undefined} data-alert={ALERT.has(leafKey) ? "true" : undefined}>
+            <dt className="jform__k">{visible(r.path)}</dt>
+            <dd className="jform__d">{r.empty ? <span className="jform__v jform__v--null">{r.empty}</span> : <Value v={r.v} k={r.k} hot={hot} />}</dd>
+          </div>
+        );
+      })}
+    </dl>
+  );
+}
+
 // ---- The pane ---------------------------------------------------------------------------------------------------------------------------------
 // value: an object or array (or a string holding one) gets the Form | JSON choice; `hot` (optional array of key names) stands those keys out in both views; a string (a token, or text) is shown as it is, a token in its three colours.
-export function Json({ value: given, label, testId, toggle = true, hot }) {
+function JsonPane({ value: given, label, testId, toggle = true, hot }) {
   const mode = useView();
   const value = given === undefined ? "" : given; // a missing value is an empty pane, never the word "undefined"
   const hotSet = hot && hot.length ? new Set([...HOT, ...hot]) : HOT;
@@ -246,6 +335,79 @@ export function Json({ value: given, label, testId, toggle = true, hot }) {
         : <pre className="json json--raw" tabIndex={0} aria-label={label} data-testid={testId}>{isJson ? <RawJson text={text} hot={hotSet} /> : kindOf(text) === "token" ? <Jwt text={text} /> : visible(text)}</pre>}
     </div>
   );
+}
+
+
+// ---- Decoded tokens (Rule 24b, owner 2026-11-18): every whole JWT a value carries is also shown decoded ---------------------------------------------------------------------------------------
+// Under the pane, one card per token named by its field path: Header, Payload, Signature, each the standard Form | JSON pane.
+// `decode={false}` marks a pane that IS a decoded part of a token (or a lab viewer that decodes itself), so a token is never decoded twice.
+// A token that is cut short or is not a JWT is skipped; at most six per pane and eight levels deep; every string is rendered as text through visible().
+const WHOLE_JWT = /^(?:(?:Bearer|DPoP) )?(eyJ[\w-]{4,}\.[\w-]{4,}\.[\w-]*)$/;
+const DECODE_MAX = 6;
+const DECODE_DEPTH = 8;
+
+export function decodeSegment(seg) {
+  const t = seg.replace(/-/g, "+").replace(/_/g, "/");
+  const bin = atob(t + "=".repeat((4 - (t.length % 4)) % 4));
+  const v = JSON.parse(new TextDecoder().decode(Uint8Array.from(bin, (ch) => ch.charCodeAt(0))));
+  return v && typeof v === "object" && !Array.isArray(v) ? v : null;
+}
+
+export function decodedTokensIn(v, path = "", out = [], depth = 0) {
+  if (out.length >= DECODE_MAX || depth > DECODE_DEPTH) return out;
+  if (typeof v === "string") {
+    const m = WHOLE_JWT.exec(v.trim());
+    if (m) {
+      if (!out.some((o) => o.raw === m[1])) {
+        try { const [h, c, s] = m[1].split("."); const header = decodeSegment(h); const claims = decodeSegment(c); if (header && claims) out.push({ name: path || "token", raw: m[1], header, claims, signature: s }); } catch { /* not a decodable JWT */ }
+      }
+      return out;
+    }
+    // JSON that arrives as text (a body, a log line) is searched too, as the pane itself would show it.
+    const inner = depth < 3 ? parseJsonText(v) : undefined;
+    if (inner !== undefined) return decodedTokensIn(inner, path, out, depth + 1);
+    return out;
+  }
+  if (Array.isArray(v)) { v.forEach((x, i) => decodedTokensIn(x, `${path}[${i}]`, out, depth + 1)); return out; }
+  if (v && typeof v === "object") for (const [k, x] of Object.entries(v)) decodedTokensIn(x, path ? `${path}.${k}` : k, out, depth + 1);
+  return out;
+}
+
+// One token in the jwt.io order: Header, Payload, Signature. The signature is shown as sent; the receiving server is the one that checks it
+// (this pane decodes, it never verifies). A token the lab only has a masked form of shows a note instead.
+export function TokenParts({ header, claims, raw, label, hot, claimsTestId }) {
+  const signature = typeof raw === "string" ? WHOLE_JWT.exec(raw.trim())?.[1].split(".")[2] ?? null : null;
+  return (
+    <>
+      <p className="jdec__h">Header</p>
+      <Json value={header} label={`${label} header`} decode={false} />
+      <p className="jdec__h">Payload</p>
+      <Json value={claims} label={`${label} payload`} decode={false} hot={hot} testId={claimsTestId} />
+      <p className="jdec__h">Signature</p>
+      {signature ? <Json value={signature} label={`${label} signature`} decode={false} /> : <p className="jdec__none">This token has no signature segment.</p>}
+    </>
+  );
+}
+
+export function DecodedTokens({ value, label, hot }) {
+  const toks = decodedTokensIn(value);
+  if (!toks.length) return null;
+  return (
+    <div className="jdec" role="group" aria-label={`${label || "JSON"} decoded tokens`} data-testid="decoded-tokens">
+      <p className="jdec__h">Decoded {toks.length === 1 ? "token" : "tokens"}</p>
+      {toks.map((t) => (
+        <article key={`${t.name}-${t.raw.slice(-12)}`} className="jdec__card" data-testid="decoded-token">
+          <p className="jdec__name">{visible(t.name)}</p>
+          <TokenParts header={t.header} claims={t.claims} raw={t.raw} label={`${label || "JSON"} ${t.name}`} hot={hot} />
+        </article>
+      ))}
+    </div>
+  );
+}
+
+export function Json({ decode = true, ...props }) {
+  const pane = <JsonPane {...props} />;
+  return decode ? <>{pane}<DecodedTokens value={props.value} label={props.label} hot={props.hot} /></> : pane;
 }
 
 export default Json;
