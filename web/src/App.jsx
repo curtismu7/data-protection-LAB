@@ -9,6 +9,8 @@ import InsightsTab from "./components/InsightsTab";
 import OwaspTab from "./components/OwaspTab";
 import DiagramTab from "./components/DiagramTab";
 import TalkTrack from "./components/TalkTrack";
+import HelpDialog from "./help-dialog/HelpDialog";
+import { HELP_SECTIONS } from "./helpContent";
 import { getJson, postJson, resetWorkspace } from "./api";
 import { x25519Support } from "./seal";
 
@@ -50,6 +52,7 @@ export default function App() {
   const [error, setError] = useState(null);
   const [tab, setTab] = useState(tabFromHash());
   const [presenter, setPresenter] = useState(false);
+  const [helpOpen, setHelpOpen] = useState(false);
   const [resetSignal, setResetSignal] = useState(0);
   const [resetMsg, setResetMsg] = useState("");
   const [theme, setTheme] = useState(initialTheme);
@@ -125,7 +128,7 @@ export default function App() {
           fontSize={{ value: fontStep, onChange: setFontStep }}
           present={{ active: presenter, onToggle: () => setPresenter((v) => !v) }}
           talkTrack={{ active: tab === "talk", onToggle: () => select("talk") }}
-          help={{ href: "https://github.com/curtismu7/data-protection-LAB#readme" }}
+          help={{ onClick: () => setHelpOpen(true), title: "What this lab is, and what is simulated" }}
           onReset={reset}
         >
           <ShelfLink />
@@ -156,6 +159,7 @@ export default function App() {
           )}
         </div>
       </main>
+      <HelpDialog isOpen={helpOpen} onClose={() => setHelpOpen(false)} sections={HELP_SECTIONS} docsUrl="https://github.com/curtismu7/data-protection-LAB#readme" />
     </div>
   );
 }
